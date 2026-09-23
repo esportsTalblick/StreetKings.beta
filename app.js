@@ -37,12 +37,63 @@
     {name:'Windig',mult:0.96,icon:'≋',pitch:'Windig'}
   ];
   const SPONSORS = [
-    {id:'rheinholz',name:'RHEINHOLZ',tier:1,pay:12000,bonus:0.02,accent:'#f4d03f',asset:'assets/sponsors/sponsor-1.png'},
-    {id:'nova',name:'NOVA SERVICE',tier:2,pay:16500,bonus:0.03,accent:'#22c55e',asset:'assets/sponsors/sponsor-2.png'},
-    {id:'talblick',name:'TALBLICK SPORT',tier:2,pay:18500,bonus:0.035,accent:'#ef4444',asset:'assets/sponsors/sponsor-3.png'},
-    {id:'ksk',name:'KREISSPARKASSE RHEIN-LAHN',tier:2,pay:21000,bonus:0.04,accent:'#d71920',asset:'assets/sponsors/sponsor-2.png'},
-    {id:'autohaus',name:'AUTOHAUS BELZER',tier:3,pay:24500,bonus:0.045,accent:'#6fb7ff',asset:'assets/sponsors/sponsor-3.png'},
-    {id:'regional',name:'AAR-EINRICH PARTNER',tier:3,pay:28000,bonus:0.05,accent:'#f59e0b',asset:'assets/sponsors/banner.png'}
+    {id:'rheinholz',name:'RHEINHOLZ',tier:1,pay:12000,bonus:0.02,accent:'#f4d03f',emoji:'🪵'},
+    {id:'nova',name:'NOVA SERVICE',tier:2,pay:16500,bonus:0.03,accent:'#22c55e',emoji:'🌿'},
+    {id:'talblick',name:'TALBLICK SPORT',tier:2,pay:18500,bonus:0.035,accent:'#ef4444',emoji:'🏔️'},
+    {id:'ksk',name:'KREISSPARKASSE RHEIN-LAHN',tier:2,pay:21000,bonus:0.04,accent:'#d71920',emoji:'🏦'},
+    {id:'autohaus',name:'AUTOHAUS BELZER',tier:3,pay:24500,bonus:0.045,accent:'#6fb7ff',emoji:'🚘'},
+    {id:'regional',name:'AAR-EINRICH PARTNER',tier:3,pay:28000,bonus:0.05,accent:'#f59e0b',emoji:'👑'},
+    {id:'kat-1',name:"Aar Bäckerei",tier:1,pay:7750,bonus:0.013,accent:'#22c55e',emoji:"\ud83e\udd68"},
+    {id:'kat-2',name:"Einrich Metzgerei",tier:1,pay:8500,bonus:0.013,accent:'#6fb7ff',emoji:"\ud83e\udd69"},
+    {id:'kat-3',name:"Katzenelnbogen Kaffeewerk",tier:1,pay:9250,bonus:0.014,accent:'#f59e0b',emoji:"\u2615"},
+    {id:'kat-4',name:"Aar Tal Getränke",tier:1,pay:10000,bonus:0.015,accent:'#be9cff',emoji:"\ud83e\udd64"},
+    {id:'kat-5',name:"Lahn & Land Hofladen",tier:1,pay:10750,bonus:0.015,accent:'#f4d03f',emoji:"\ud83c\udf3e"},
+    {id:'kat-6',name:"Taunus Fahrradwerk",tier:1,pay:11500,bonus:0.016,accent:'#22c55e',emoji:"\ud83d\udeb2"},
+    {id:'kat-7',name:"Katzenelnbogen Auto Service",tier:1,pay:12250,bonus:0.017,accent:'#6fb7ff',emoji:"\ud83d\ude97"},
+    {id:'kat-8',name:"Einrich Reifen",tier:1,pay:13000,bonus:0.017,accent:'#f59e0b',emoji:"\ud83d\udede"},
+    {id:'kat-9',name:"Aar Apotheke",tier:1,pay:13750,bonus:0.018,accent:'#be9cff',emoji:"\ud83d\udc8a"},
+    {id:'kat-10',name:"Lahn Optik",tier:1,pay:14500,bonus:0.018,accent:'#f4d03f',emoji:"\ud83d\udc53"},
+    {id:'kat-11',name:"Taunus Fitness",tier:1,pay:15250,bonus:0.019,accent:'#22c55e',emoji:"\ud83c\udfcb\ufe0f"},
+    {id:'kat-12',name:"Einrich Sportswear",tier:1,pay:16000,bonus:0.02,accent:'#6fb7ff',emoji:"\ud83d\udc55"},
+    {id:'kat-13',name:"Katzenelnbogen Fahrschule",tier:1,pay:16750,bonus:0.02,accent:'#f59e0b',emoji:"\ud83d\udea6"},
+    {id:'kat-14',name:"Aar Bau & Holz",tier:1,pay:17500,bonus:0.021,accent:'#be9cff',emoji:"\ud83e\udeb5"},
+    {id:'kat-15',name:"Lahn Elektro",tier:1,pay:18250,bonus:0.022,accent:'#f4d03f',emoji:"\ud83d\udd0c"},
+    {id:'kat-16',name:"Taunus Dach & Wand",tier:1,pay:19000,bonus:0.022,accent:'#22c55e',emoji:"\ud83c\udfe0"},
+    {id:'kat-17',name:"Einrich Gartenwelt",tier:1,pay:19750,bonus:0.023,accent:'#6fb7ff',emoji:"\ud83c\udf33"},
+    {id:'kat-18',name:"Katzenelnbogen Blumenhaus",tier:1,pay:20500,bonus:0.024,accent:'#f59e0b',emoji:"\ud83d\udc90"},
+    {id:'kat-19',name:"Aar Café am Markt",tier:2,pay:27750,bonus:0.027,accent:'#be9cff',emoji:"\ud83c\udf70"},
+    {id:'kat-20',name:"Lahn Pizza",tier:2,pay:28500,bonus:0.028,accent:'#f4d03f',emoji:"\ud83c\udf55"},
+    {id:'kat-21',name:"Taunus Grillstube",tier:2,pay:29250,bonus:0.029,accent:'#22c55e',emoji:"\ud83c\udf54"},
+    {id:'kat-22',name:"Einrich Eisdiele",tier:2,pay:30000,bonus:0.029,accent:'#6fb7ff',emoji:"\ud83c\udf66"},
+    {id:'kat-23',name:"Katzenelnbogen Buchladen",tier:2,pay:30750,bonus:0.03,accent:'#f59e0b',emoji:"\ud83d\udcda"},
+    {id:'kat-24',name:"Aar Computer Service",tier:2,pay:31500,bonus:0.031,accent:'#be9cff',emoji:"\ud83d\udcbb"},
+    {id:'kat-25',name:"Lahn Handy Punkt",tier:2,pay:32250,bonus:0.031,accent:'#f4d03f',emoji:"\ud83d\udcf1"},
+    {id:'kat-26',name:"Taunus Werkstatt",tier:2,pay:33000,bonus:0.032,accent:'#22c55e',emoji:"\ud83d\udd27"},
+    {id:'kat-27',name:"Einrich Schlüsseldienst",tier:2,pay:33750,bonus:0.033,accent:'#6fb7ff',emoji:"\ud83d\udd11"},
+    {id:'kat-28',name:"Katzenelnbogen Reinigung",tier:2,pay:34500,bonus:0.033,accent:'#f59e0b',emoji:"\ud83e\uddfd"},
+    {id:'kat-29',name:"Aar Druck & Design",tier:2,pay:35250,bonus:0.034,accent:'#be9cff',emoji:"\ud83d\udda8\ufe0f"},
+    {id:'kat-30',name:"Lahn Media",tier:2,pay:36000,bonus:0.035,accent:'#f4d03f',emoji:"\ud83d\udcfa"},
+    {id:'kat-31',name:"Taunus Radio",tier:2,pay:36750,bonus:0.035,accent:'#22c55e',emoji:"\ud83d\udcfb"},
+    {id:'kat-32',name:"Einrich Eventservice",tier:2,pay:37500,bonus:0.036,accent:'#6fb7ff',emoji:"\ud83c\udfaa"},
+    {id:'kat-33',name:"Katzenelnbogen Taxi",tier:2,pay:38250,bonus:0.036,accent:'#f59e0b',emoji:"\ud83d\ude95"},
+    {id:'kat-34',name:"Aar Kurier",tier:2,pay:39000,bonus:0.037,accent:'#be9cff',emoji:"\ud83d\udce6"},
+    {id:'kat-35',name:"Lahn Logistik",tier:2,pay:39750,bonus:0.038,accent:'#f4d03f',emoji:"\ud83d\ude9a"},
+    {id:'kat-36',name:"Taunus Immobilien",tier:2,pay:40500,bonus:0.038,accent:'#22c55e',emoji:"\ud83c\udfe2"},
+    {id:'kat-37',name:"Einrich Versicherung",tier:3,pay:47750,bonus:0.042,accent:'#6fb7ff',emoji:"\ud83d\udee1\ufe0f"},
+    {id:'kat-38',name:"Katzenelnbogen Finanzservice",tier:3,pay:48500,bonus:0.043,accent:'#f59e0b',emoji:"\ud83d\udcb6"},
+    {id:'kat-39',name:"Aar Reisebüro",tier:3,pay:49250,bonus:0.043,accent:'#be9cff',emoji:"\u2708\ufe0f"},
+    {id:'kat-40',name:"Lahn Hotel",tier:3,pay:50000,bonus:0.044,accent:'#f4d03f',emoji:"\ud83d\udecf\ufe0f"},
+    {id:'kat-41',name:"Taunus Camping",tier:3,pay:50750,bonus:0.045,accent:'#22c55e',emoji:"\u26fa"},
+    {id:'kat-42',name:"Einrich Tiermarkt",tier:3,pay:51500,bonus:0.045,accent:'#6fb7ff',emoji:"\ud83d\udc3e"},
+    {id:'kat-43',name:"Katzenelnbogen Tierarzt",tier:3,pay:52250,bonus:0.046,accent:'#f59e0b',emoji:"\ud83d\udc15"},
+    {id:'kat-44',name:"Aar Fahrrad & Sport",tier:3,pay:53000,bonus:0.047,accent:'#be9cff',emoji:"\u26bd"},
+    {id:'kat-45',name:"Lahn Outdoor",tier:3,pay:53750,bonus:0.047,accent:'#f4d03f',emoji:"\ud83e\udd7e"},
+    {id:'kat-46',name:"Taunus Holzhandel",tier:3,pay:54500,bonus:0.048,accent:'#22c55e',emoji:"\ud83e\ude9a"},
+    {id:'kat-47',name:"Einrich Baustoffe",tier:3,pay:55250,bonus:0.049,accent:'#6fb7ff',emoji:"\ud83e\uddf1"},
+    {id:'kat-48',name:"Katzenelnbogen Markt",tier:3,pay:56000,bonus:0.049,accent:'#f59e0b',emoji:"\ud83d\uded2"},
+    {id:'kat-49',name:"Aar Getränkemarkt",tier:3,pay:56750,bonus:0.05,accent:'#be9cff',emoji:"\ud83c\udf7a"},
+    {id:'kat-50',name:"Lahn Blech & Metall",tier:3,pay:57500,bonus:0.05,accent:'#f4d03f',emoji:"\u2699\ufe0f"},
+    {id:'kat-51',name:"Taunus Druckerei",tier:3,pay:58250,bonus:0.051,accent:'#22c55e',emoji:"\ud83d\udcf0"}
   ];
   const TEAM_NAMES = [["Street Kings","Katzenelnbogen"],["Taunus Park FC","Hahnstätten"],["Limburg United","Limburg"],["Diezer SV","Diez"],["Nassau FC","Nassau"],["Bad Ems 1911","Bad Ems"],["FC Talblick","Aarbergen"],["Aar Tal FC","Aarbergen"],["VfR Einrich","Klingelbach"],["Blau-Weiss Allendorf","Allendorf"],["TuS Hünstätten","Hünstätten"],["SV Holzhausen","Holzhausen"],["FC Scheidt","Scheidt"],["Viktoria Berg","Berg"],["SG Lahn Blick","Lahnstein"],["FC Zollhaus","Zollhaus"],["SV Oberneisen","Oberneisen"],["RSV Heistern","Heistern"],["FC Dörsdorf","Dörsdorf"],["SV Rettert","Rettert"],["TuS Eisenbach","Eisenbach"],["SV Kördorf","Körsdorf"],["FC Netzen","Netzen"],["SG Flacht","Flacht"],["SV Niederneisen","Niederneisen"],["FC Kaldorf","Kaldorf"]];
 
@@ -50,7 +101,7 @@
     version:'4.0.0', firstRun:true, teamChosen:false, manager:'Manager', active:'home', season:1, week:1,
     date:new Date('2026-08-15T18:00:00'), userTeamId:null, teams:{}, leagues:{}, market:[], coaches:[], news:[],
     friendlies:[], marketFilter:'all', tactic:'1-2-2', tactics:{pressing:62,risk:50,tempo:58,passing:56}, notifications:2,
-    trophies:0, fans:77, lastMatch:null, liveMatch:null
+    trophies:0, fans:77, lastMatch:null, liveMatch:null, lineupPositions:{}
   };
 
   function playerAvatar(p, accent='#41f3a5', small=false){
@@ -187,7 +238,7 @@
   }
 
   function normalizeState(){
-    state.active=state.active||'home'; state.tactic=state.tactic||'1-2-2'; state.tactics=state.tactics||{pressing:62,risk:50,tempo:58,passing:56};
+    state.active=state.active||'home'; state.tactic=state.tactic||'1-2-2'; state.tactics=state.tactics||{pressing:62,risk:50,tempo:58,passing:56}; state.lineupPositions=state.lineupPositions||{};
     const leagueSizes=Object.values(state.leagues||{}).map(l=>Array.isArray(l.teams)?l.teams.length:0).sort((a,b)=>a-b);
     const validStructure=Object.keys(state.teams||{}).length===26 && leagueSizes.join(',')==='8,9,9';
     if(!validStructure){
@@ -310,7 +361,7 @@
 
   function renderSponsorHome(t){
     const s=t.sponsor||SPONSORS[0];
-    return `<section class="card sponsor-home-card"><div class="sponsor-home-top"><div><div class="section-kicker">HAUPTSPONSOR</div><h2>${esc(s.name)}</h2><p>${money(s.pay)} / Woche · Bonus +${Math.round(s.bonus*100)}%</p></div><img src="${s.asset}" alt="${esc(s.name)}"></div><button class="ghost-btn wide" data-page="sponsors">SPONSOR-MENÜ ÖFFNEN</button></section>`;
+    return `<section class="card sponsor-home-card"><div class="sponsor-home-top"><div><div class="section-kicker">HAUPTSPONSOR</div><h2>${esc(s.name)}</h2><p>${money(s.pay)} / Woche · Bonus +${Math.round(s.bonus*100)}%</p></div><div class="sponsor-emoji-big">${s.emoji||'🏷️'}</div></div><button class="ghost-btn wide" data-page="sponsors">SPONSOR-MENÜ ÖFFNEN</button></section>`;
   }
 
   function renderNextMatchCard(ng,opp){
@@ -328,8 +379,10 @@
   }
 
   function renderLineupCard(){
-    const t=currentTeam(),players=t.roster.slice(0,5), coords=formationPositions();
-    return `<section class="card lineup-card"><div class="section-head"><div><div class="section-kicker">AUFSTELLUNG</div><h2>4 + 1 · ${esc(state.tactic)}</h2></div><button class="ghost-btn" data-page="tactics">Taktik</button></div><div class="field-mobile"><div class="field-mark center"></div><div class="field-mark box top"></div><div class="field-mark box bottom"></div><div class="field-mark line"></div>${players.map((p,i)=>`<button class="field-player" style="left:${coords[i].x}%;top:${coords[i].y}%" data-player="${p.id}"><img src="${playerAvatar(p,t.teamColor,true)}"><b>${esc(p.name.split(' ')[0])}</b><span>${marketLabel(p.pos)} ${p.rating}</span></button>`).join('')}</div><div class="team-bars"><div><span>OFF</span><b>${Math.round(avg(players,p=>p.skill.shoot))}</b><i><em style="width:${avg(players,p=>p.skill.shoot)}%"></em></i></div><div><span>PASS</span><b>${Math.round(avg(players,p=>p.skill.pass))}</b><i><em style="width:${avg(players,p=>p.skill.pass)}%"></em></i></div><div><span>DEF</span><b>${Math.round(avg(players,p=>p.skill.def))}</b><i><em style="width:${avg(players,p=>p.skill.def)}%"></em></i></div></div></section>`;
+    const t=currentTeam(),players=t.roster.slice(0,5),defaults=formationPositions();
+    state.lineupPositions[t.id]=state.lineupPositions[t.id]||{};
+    const coordsFor=(p,i)=>state.lineupPositions[t.id][p.id]||defaults[i];
+    return `<section class="card lineup-card"><div class="section-head"><div><div class="section-kicker">AUFSTELLUNG</div><h2>4 + 1 · ${esc(state.tactic)}</h2><small class="drag-hint">Spieler gedrückt halten und ziehen</small></div><button class="ghost-btn" data-page="tactics">Taktik</button></div><div class="field-mobile" data-lineup-field><div class="field-mark center"></div><div class="field-mark box top"></div><div class="field-mark box bottom"></div><div class="field-mark line"></div>${players.map((p,i)=>{const c=coordsFor(p,i);return `<button class="field-player draggable-player" style="left:${c.x}%;top:${c.y}%" data-player="${p.id}" data-drag-player="${p.id}" aria-label="${esc(p.name)} verschieben"><span class="drag-grip">✥</span><img src="${playerAvatar(p,t.teamColor,true)}"><b>${esc(p.name.split(' ')[0])}</b><span>${marketLabel(p.pos)} ${p.rating}</span></button>`}).join('')}</div><div class="team-bars"><div><span>OFF</span><b>${Math.round(avg(players,p=>p.skill.shoot))}</b><i><em style="width:${avg(players,p=>p.skill.shoot)}%"></em></i></div><div><span>PASS</span><b>${Math.round(avg(players,p=>p.skill.pass))}</b><i><em style="width:${avg(players,p=>p.skill.pass)}%"></em></i></div><div><span>DEF</span><b>${Math.round(avg(players,p=>p.skill.def))}</b><i><em style="width:${avg(players,p=>p.skill.def)}%"></em></i></div></div></section>`;
   }
 
   function renderTeam(){
@@ -390,16 +443,30 @@
   }
 
   function renderSponsors(){
-    const t=currentTeam(); return `${pageHead('Sponsoren','Partner aus Katzenelnbogen und Umgebung')}
-      <div class="sponsor-current">${t.sponsor?`<div><span>HAUPTSPONSOR</span><strong>${esc(t.sponsor.name)}</strong><small>${money(t.sponsor.pay)} / Woche · +${Math.round(t.sponsor.bonus*100)}% Bonus</small></div><img class="sponsor-logo" src="${sponsorAsset(t.sponsor.id)}" alt=""><div class="sponsor-badge" style="--a:${t.sponsor.accent}">${esc(t.sponsor.name.split(' ')[0])}</div>`:'<div><strong>Kein Hauptsponsor</strong></div>'}</div>
-      <div class="stack">${SPONSORS.map(s=>`<section class="card sponsor-card"><img class="sponsor-logo" src="${sponsorAsset(s.id)}" alt=""><div class="sponsor-badge" style="--a:${s.accent}">${esc(s.name.split(' ')[0])}</div><div><strong>${esc(s.name)}</strong><span>Stufe ${s.tier} · ${money(s.pay)} / Woche</span><span>Bonus +${Math.round(s.bonus*100)}%</span></div><button class="small-btn ${t.sponsor?.id===s.id?'':'gold'}" data-sponsor="${s.id}">${t.sponsor?.id===s.id?'AKTIV':'VERTRAG'}</button></section>`).join('')}</div>`;
+    const t=currentTeam();
+    return `${pageHead('Sponsoren','Partner aus Katzenelnbogen und Umgebung · 56 Optionen')}
+      <div class="sponsor-current">${t.sponsor?`<div><span>HAUPTSPONSOR</span><strong>${esc(t.sponsor.name)}</strong><small>${money(t.sponsor.pay)} / Woche · +${Math.round(t.sponsor.bonus*100)}% Bonus</small></div><div class="sponsor-emoji-big">${t.sponsor.emoji||'🏷️'}</div><div class="sponsor-badge" style="--a:${t.sponsor.accent}">${esc(t.sponsor.name.split(' ')[0])}</div>`:'<div><strong>Kein Hauptsponsor</strong></div>'}</div>
+      <div class="stack">${SPONSORS.map(s=>`<section class="card sponsor-card"><div class="sponsor-emoji">${s.emoji||'🏷️'}</div><div class="sponsor-badge" style="--a:${s.accent}">${esc(s.name.split(' ')[0])}</div><div class="sponsor-info"><strong>${esc(s.name)}</strong><span>Stufe ${s.tier} · ${money(s.pay)} / Woche</span><span>Bonus +${Math.round(s.bonus*100)}%</span></div><button class="small-btn ${t.sponsor?.id===s.id?'':'gold'}" data-sponsor="${s.id}">${t.sponsor?.id===s.id?'AKTIV':'VERTRAG'}</button></section>`).join('')}</div>`;
   }
 
   function renderStadium(){
-    const t=currentTeam(); const ups=[['capacity','Kapazität','Mehr Zuschauer'],['stands','Tribüne','Mehr Stimmung'],['lighting','Flutlicht','Abendspiele'],['catering','Catering','Mehr Umsatz'],['merch','Merch','Vereinsumsatz'],['vip','VIP','Premiumgäste'],['surface','Kunstrasen','Wetterbonus'],['fence','Banden','Sponsorplätze'],['media','Medien','News-Reichweite'],['academy','Jugendzentrum','Talentbonus']];
-    return `${pageHead('Arena','Dein Bolzplatz wird zum Street-Soccer-Hotspot',`<button class="ghost-btn" data-rename-stadium>UMBENENNEN</button>`)}
-      ${card(esc(t.stadium.name),`<div class="stadium-art"><div class="fence"></div><div class="lights"></div><div class="court"></div><div class="crowd"></div></div><div class="kpi-strip"><span><b>${t.stadium.capacity}</b><small>PLÄTZE</small></span><span><b>${t.stadium.level}</b><small>LEVEL</small></span><span><b>${money(t.budget)}</b><small>BUDGET</small></span></div>`)}
-      ${card('Ausbau',`<div class="upgrade-list">${ups.map(([k,label,desc])=>{const lvl=t.stadium.upgrades[k]||0,cost=Math.round(9000*Math.pow(1.8,lvl));return `<div class="upgrade-row"><div><strong>${label}</strong><span>${desc} · Lvl ${lvl}</span></div><b>${money(cost)}</b><button class="small-btn gold" data-upgrade="${k}">+</button></div>`}).join('')}</div>`)}
+    const t=currentTeam();
+    const ups=[['capacity','Kapazität','Mehr Zuschauer'],['stands','Tribüne','Mehr Stimmung'],['lighting','Flutlicht','Abendspiele'],['catering','Catering','Mehr Umsatz'],['merch','Merch','Vereinsumsatz'],['vip','VIP','Premiumgäste'],['surface','Kunstrasen','Wetterbonus'],['fence','Banden','Sponsorplätze'],['media','Medien','News-Reichweite'],['academy','Jugendzentrum','Talentbonus']];
+    const u=k=>t.stadium.upgrades[k]||0;
+    const level=Math.max(1,t.stadium.level||1);
+    const buildKey=state.stadiumBuildKey||'';
+    return `${pageHead('Arena','Umbau direkt im Stadion sichtbar',`<button class="ghost-btn" data-rename-stadium>UMBENENNEN</button>`)}
+      ${card(esc(t.stadium.name),`<div class="stadium-build-scene ${buildKey?'building':''}">
+        <div class="scene-sky"><span class="moon">◐</span></div>
+        <div class="scene-lights left ${u('lighting')?'on':''}"></div><div class="scene-lights right ${u('lighting')?'on':''}"></div>
+        <div class="scene-stand stand-back" style="--rows:${Math.min(6,1+u('stands'))}"><i></i><i></i><i></i></div>
+        <div class="scene-pitch"><div class="scene-half"></div><div class="scene-circle"></div><div class="scene-goal left"></div><div class="scene-goal right"></div></div>
+        <div class="scene-stand stand-front" style="--rows:${Math.min(5,1+u('stands'))}"></div>
+        <div class="scene-fence ${u('fence')?'sponsor-ready':''}"></div>
+        ${u('vip')?'<div class="scene-vip">VIP</div>':''}${u('catering')?'<div class="scene-kiosk">☕</div>':''}${u('merch')?'<div class="scene-kiosk merch">👕</div>':''}
+        <div class="construction ${buildKey?'active':''}"><span>🏗️</span><b>UMBAU</b><small>${buildKey?esc(ups.find(x=>x[0]===buildKey)?.[1]||buildKey):'Arena bereit'}</small></div>
+      </div><div class="kpi-strip"><span><b>${t.stadium.capacity}</b><small>PLÄTZE</small></span><span><b>${level}</b><small>LEVEL</small></span><span><b>${money(t.budget)}</b><small>BUDGET</small></span></div><div class="build-progress"><span style="width:${Math.min(100,level*10)}%"></span></div>`)}
+      ${card('Ausbau',`<div class="upgrade-list">${ups.map(([k,label,desc])=>{const lvl=u(k),cost=Math.round(9000*Math.pow(1.8,lvl));return `<div class="upgrade-row"><div><strong>${label}</strong><span>${desc} · Lvl ${lvl}</span></div><b>${money(cost)}</b><button class="small-btn gold" data-upgrade="${k}">+</button></div>`}).join('')}</div>`)}
     `;
   }
 
@@ -985,7 +1052,7 @@
   }
 
   function upgradeStadium(k){
-    const t=currentTeam(),lvl=t.stadium.upgrades[k]||0,cost=Math.round(9000*Math.pow(1.8,lvl));if(t.budget<cost){toast('Budget fehlt',`Benötigt ${money(cost)}.`);return;}t.budget-=cost;t.stadium.upgrades[k]=lvl+1;t.stadium.level=Math.max(t.stadium.level,lvl+2);if(k==='capacity')t.stadium.capacity+=40;if(k==='stands')t.stadium.capacity+=70;if(k==='lighting')t.stadium.capacity+=12;addNews('Arena verbessert',`${t.stadium.name}: ${k} auf Level ${lvl+1}.`,'stadium');saveState();render();toast('Ausbau fertig',`${k} · Level ${lvl+1}`);
+    const t=currentTeam(),lvl=t.stadium.upgrades[k]||0,cost=Math.round(9000*Math.pow(1.8,lvl));if(t.budget<cost){toast('Budget fehlt',`Benötigt ${money(cost)}.`);return;}t.budget-=cost;t.stadium.upgrades[k]=lvl+1;t.stadium.level=Math.max(t.stadium.level,lvl+2);if(k==='capacity')t.stadium.capacity+=40;if(k==='stands')t.stadium.capacity+=70;if(k==='lighting')t.stadium.capacity+=12;state.stadiumBuildKey=k;addNews('Arena verbessert',`${t.stadium.name}: ${k} auf Level ${lvl+1}.`,'stadium');saveState();render();toast('Umbau gestartet',`${k} · Level ${lvl+1}`);setTimeout(()=>{state.stadiumBuildKey='';renderPage();saveState();},1500);
   }
 
   function hireSponsor(id){const t=currentTeam(),s=SPONSORS.find(x=>x.id===id);if(!s)return;if(t.sponsor&&s.tier<t.sponsor.tier){toast('Vertrag nicht besser','Dieser Sponsor ist eine niedrigere Stufe.');return;}t.sponsor={...s};addNews('Sponsor an Bord',`${s.name} unterstützt ${t.name}.`,'sponsor');saveState();render();toast('Sponsor unterschrieben',s.name);}
@@ -1011,10 +1078,44 @@
     if(state.active==='market'&&!state.liveMatch)renderPage();
   }
 
+  let dragState=null;
   function bindGlobal(){
     document.addEventListener('click',handleClick);
     document.addEventListener('input',handleInput);
+    document.addEventListener('pointerdown',beginPlayerDrag,{passive:false});
+    document.addEventListener('pointermove',movePlayerDrag,{passive:false});
+    document.addEventListener('pointerup',endPlayerDrag,{passive:false});
+    document.addEventListener('pointercancel',endPlayerDrag,{passive:false});
     setInterval(tickMarket,5000);
+  }
+
+  function beginPlayerDrag(e){
+    const el=e.target.closest?.('[data-drag-player]'); if(!el||!currentTeam())return;
+    const field=el.closest('[data-lineup-field]'); if(!field)return;
+    e.preventDefault();
+    const rect=field.getBoundingClientRect();
+    dragState={el,field,playerId:el.dataset.dragPlayer,teamId:currentTeam().id,rect,startX:e.clientX,startY:e.clientY,moved:false,pointerId:e.pointerId};
+    el.classList.add('dragging');
+    try{el.setPointerCapture(e.pointerId)}catch(_){}
+  }
+  function movePlayerDrag(e){
+    if(!dragState||dragState.pointerId!==e.pointerId)return;
+    e.preventDefault();
+    const r=dragState.rect;
+    const dx=e.clientX-dragState.startX,dy=e.clientY-dragState.startY;
+    if(Math.hypot(dx,dy)>5)dragState.moved=true;
+    if(!dragState.moved)return;
+    const x=clamp(((e.clientX-r.left)/r.width)*100,5,95), y=clamp(((e.clientY-r.top)/r.height)*100,8,92);
+    dragState.el.style.left=x+'%'; dragState.el.style.top=y+'%';
+    state.lineupPositions[dragState.teamId]=state.lineupPositions[dragState.teamId]||{};
+    state.lineupPositions[dragState.teamId][dragState.playerId]={x,y};
+  }
+  function endPlayerDrag(e){
+    if(!dragState||dragState.pointerId!==e.pointerId)return;
+    const moved=dragState.moved;
+    dragState.el.classList.remove('dragging');
+    dragState=null;
+    if(moved){state._dragMoved=true;saveState();}
   }
 
   function go(page){state.active=page;window.scrollTo({top:0,behavior:'smooth'});renderPage();}
@@ -1033,12 +1134,12 @@
     else if(el.dataset.close)closeModal();
     else if(el.dataset.welcome){state.manager=($('#welcomeManager')?.value||'Manager').trim()||'Manager';currentTeam().name=($('#welcomeTeam')?.value||currentTeam().name).trim()||currentTeam().name;state.firstRun=false;saveState();closeModal();render();toast('Willkommen',`Los geht's, ${state.manager}.`);}
     else if(el.dataset.selectTeam){const t=state.teams[el.dataset.selectTeam];if(t){state.userTeamId=t.id;state.manager=($('#welcomeManager')?.value||state.manager).trim()||'Manager';t.sponsor=t.sponsor||{...SPONSORS[0]};state.teamChosen=true;state.firstRun=false;saveState();closeModal();state.active='home';render();toast('Club gewählt',`${t.name} · ${t.city}`);}}
-    else if(el.dataset.player)openPlayer(el.dataset.player);
+    else if(el.dataset.player){if(state._dragMoved){state._dragMoved=false;return;}openPlayer(el.dataset.player);}
     else if(el.dataset.sell)sellPlayer(el.dataset.sell);
     else if(el.dataset.buy)buyPlayer(el.dataset.buy);
     else if(el.dataset.bid)bidPlayer(el.dataset.bid);
     else if(el.dataset.watch){const p=state.market.find(x=>x.id===el.dataset.watch);if(p){p.watch=!p.watch;render();}}
-    else if(el.dataset.tactic){state.tactic=el.dataset.tactic;saveState();renderPage();}
+    else if(el.dataset.tactic){state.tactic=el.dataset.tactic;const t=currentTeam();state.lineupPositions[t.id]={};saveState();renderPage();}
     else if(el.dataset.marketfilter){state.marketFilter=el.dataset.marketfilter;renderPage();}
     else if(el.dataset.marketRefresh){state.market=generateMarket(48);saveState();renderPage();toast('Marktplatz aktualisiert','Neue Live-Angebote sind da.');}
     else if(el.dataset.sponsor)hireSponsor(el.dataset.sponsor);
