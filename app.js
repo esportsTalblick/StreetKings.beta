@@ -176,13 +176,13 @@
       state.firstRun=false;saveState();
       return;
     }
-    Object.values(state.teams||{}).forEach(t=>{t.logo=t.logo||('assets/clubs/'+slugify(t.name)+'.png');});
+    Object.values(state.teams||{}).forEach(t=>{t.logo='assets/clubs/'+slugify(t.name)+'.png';});
     if(state.teams && !state.teams[state.userTeamId]) state.userTeamId=Object.keys(state.teams)[0];
     state.market=Array.isArray(state.market)?state.market:generateMarket(48); if(state.market.length<30) state.market=generateMarket(48); state.coaches=Array.isArray(state.coaches)?state.coaches:generateCoaches(); state.teamChosen = !!state.teamChosen; state.fans = state.fans || 77; state.news=Array.isArray(state.news)?state.news:[]; state.friendlies=Array.isArray(state.friendlies)?state.friendlies:[];
     state.date=new Date(state.date||Date.now());
     Object.values(state.teams||{}).forEach(t=>{
       t.roster ||= makeRoster(t.teamColor||'#39f2a5',t.quality||65); t.stats ||= {played:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,homeRevenue:0,shots:0,xg:0}; t.form ||= ['W','D','W','L','S'];
-      t.stadium ||= {name:`${t.name} Street Arena`,capacity:180,level:1,upgrades:{}}; t.stadium.upgrades ||= {}; t.youth ||= 1; t.budget ||= 120000; t.logo ||= `assets/clubs/${slugify(t.name)}.svg`;
+      t.stadium ||= {name:`${t.name} Street Arena`,capacity:180,level:1,upgrades:{}}; t.stadium.upgrades ||= {}; t.youth ||= 1; t.budget ||= 120000; t.logo = `assets/clubs/${slugify(t.name)}.png`;
     });
     Object.values(state.leagues||{}).forEach(l=>{l.standings ||= {};l.schedule ||= [];});
     state.liveMatch=null; state.version='4.0.0';
