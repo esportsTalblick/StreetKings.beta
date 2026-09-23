@@ -11,8 +11,8 @@
 (() => {
   'use strict';
 
-  const APP_KEY = 'streetKingsSaveV16';
-  const APP_VERSION = '16.0.0';
+  const APP_KEY = 'streetKingsSaveV18';
+  const APP_VERSION = '18.0.0';
   const LEGACY_KEYS = ['streetKingsSaveV15','streetKingsSaveV14','streetKingsSaveV13','streetKingsSaveV12','streetKingsSaveV11','streetKingsSaveV10','streetKingsSaveV9','streetKingsSaveV8','streetKingsSaveV7','streetKingsSaveV6','streetKingsSaveV5','streetKingsSaveV4','streetKingsSaveV3','streetKingsSaveV2','streetKingsSave'];
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -146,10 +146,20 @@
     return state;
   }
   function startNewGameFlow(){
+    if(state.liveMatch) return toast('Spiel läuft noch','Neues Spiel erst nach dem Abpfiff starten.');
     clearSaveKeys();
+    try{ localStorage.removeItem(APP_KEY); }catch(_){}
     buildFreshCareer({save:false});
+    state.version=APP_VERSION;
+    state.firstRun=true;
+    state.teamChosen=false;
+    state.userTeamId=null;
+    state.pendingTeamId=null;
+    state.introStage='club';
+    state.active='home';
     render();
-    window.scrollTo({top:0,behavior:'instant'});
+    window.scrollTo(0,0);
+    setTimeout(()=>toast('NEUE MANAGERKARRIERE','Wähle jetzt deinen neuen Verein.'),80);
   }
 
   function playerAvatar(p, accent='#41f3a5', small=false){
@@ -271,45 +281,44 @@
   }
 
   function initState(){
-    let raw=localStorage.getItem(APP_KEY), loadedKey=APP_KEY;
-    if(!raw){
-      for(const key of LEGACY_KEYS){
-        const candidate=localStorage.getItem(key);
-        if(candidate){raw=candidate;loadedKey=key;break;}
+    // V18 intentionally starts with a clean career. Older local saves are removed once.
+    // We do NOT migrate an old selected team into the new career.
+    try{
+      const oldKeys=[];
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k && (/^streetKingsSave/i.test(k) || /^skm/i.test(k)) && k!==APP_KEY) oldKeys.push(k);
       }
-    }
+      oldKeys.forEach(k=>localStorage.removeItem(k));
+      sessionStorage.clear();
+    }catch(e){ console.warn('Legacy save cleanup failed',e); }
+
+    const raw=localStorage.getItem(APP_KEY);
     if(raw){
       try{
         const d=JSON.parse(raw);
-        const hadTeamFlag=Object.prototype.hasOwnProperty.call(d,'teamChosen');
         Object.assign(state,d);
-        if(!hadTeamFlag) state.teamChosen=!state.firstRun;
         normalizeState();
         state.version=APP_VERSION;
-        if(state.teamChosen){state.firstRun=false;state.introStage='done';state.pendingTeamId=null;}
-        else {state.firstRun=true;state.introStage=state.introStage||'welcome';}
-        if(loadedKey!==APP_KEY) saveState();
+        if(state.teamChosen && state.userTeamId && state.teams[state.userTeamId]){
+          state.firstRun=false; state.introStage='done'; state.pendingTeamId=null;
+        }else{
+          state.firstRun=true; state.teamChosen=false; state.userTeamId=null; state.pendingTeamId=null; state.introStage='club';
+        }
         return;
-      }catch(e){console.warn('Save konnte nicht geladen werden',e);}
+      }catch(e){
+        console.warn('V18 Save konnte nicht geladen werden – starte sauber neu.',e);
+        try{localStorage.removeItem(APP_KEY);}catch(_){}
+      }
     }
-    const teams=buildTeams(); teams.forEach(t=>state.teams[t.id]=t); state.userTeamId=teams[0].id;
-    state.leagues.L1=makeLeague(teams.slice(0,9),'Kreisliga A',1);
-    state.leagues.L2=makeLeague(teams.slice(9,18),'Kreisliga B',2);
-    state.leagues.L3=makeLeague(teams.slice(18,26),'Kreisliga C',3);
-    const t=currentTeam(); t.sponsor={...SPONSORS[0]}; t.stadium.capacity=220;
-    state.market=generateMarket(48); state.coaches=generateCoaches();
-    state.news=[
-      {title:'Willkommen in Katzenelnbogen',body:'Dein Street-Soccer-Club startet. Die Stadt schaut zu.',kind:'city'},
-      {title:'Bolzplatz im Fokus',body:'Mit Ausbau, Licht und Tribüne wird aus dem Platz eine echte Arena.',kind:'stadium'},
-      {title:'Marktplatz geöffnet',body:'Neue Talente aus Aar-Einrich und Rhein-Lahn warten auf Angebote.',kind:'market'}
-    ];
-    state.friendlies=[];
-    state.firstRun=false;
-    state.teamChosen=true;
-    state.pendingTeamId=null;
-    state.introStage='done';
+
+    buildFreshCareer({save:false});
     state.version=APP_VERSION;
-    saveState();
+    state.firstRun=true;
+    state.teamChosen=false;
+    state.userTeamId=null;
+    state.pendingTeamId=null;
+    state.introStage='club';
   }
 
   function normalizeState(){
@@ -708,7 +717,7 @@
     return `${pageHead('Einstellungen','Profile, Savegames und Spielstart')}
       ${card('Managerprofil',`<label class="input-label">Managername<input class="text-input" id="managerName" value="${esc(state.manager)}"></label><label class="input-label">Vereinsname<input class="text-input" id="teamName" value="${esc(t.name)}"></label><label class="input-label">Arena<input class="text-input" id="stadiumName" value="${esc(t.stadium.name)}"></label><button type="button" class="gold-btn wide" data-settings-save>SPEICHERN</button><div class="save-status">Zuletzt gespeichert: <b>${esc(saved)}</b></div>`)}
       ${card('Spielstand',`<div class="action-grid"><button type="button" class="action-tile" data-export><b>↑</b><small>EXPORTIEREN</small></button><button type="button" class="action-tile" data-import><b>↓</b><small>IMPORTIEREN</small></button></div><div class="save-help">Export erstellt eine echte JSON-Datei. Import kann auch ältere Street-Kings-Saves erkennen und übernimmt sie in dieses Spiel.</div>`)}
-      ${card('Karriere neu starten',`<div class="reset-career-box"><div><strong>NEUE MANAGERKARRIERE</strong><p>Deine aktuelle Karriere wird gelöscht. Danach wählst du direkt einen neuen Verein.</p></div><button type="button" class="gold-btn wide danger-start" data-new-game-flow>NEUES SPIEL · TEAM WÄHLEN</button></div>`)}
+      ${card('Karriere',`<div class="reset-career-box"><div><strong>NEUE MANAGERKARRIERE</strong><p>Die aktuelle Karriere wird vollständig gelöscht. Danach öffnet sich direkt die Vereinsauswahl.</p></div><button type="button" class="gold-btn wide danger-start" data-new-game-flow>↻ KARRIERE NEU STARTEN · TEAM WÄHLEN</button></div>`)}
       ${card('Über das Spiel',`<p class="muted">Street Kings: Manager · Browser Edition · Katzenelnbogen · 5er Street Soccer · Touch-first UI</p>`)}
     `;
   }
@@ -1630,6 +1639,24 @@
       lastActionEl=el; lastActionAt=now;
       handleClick(e);
     };
+    document.addEventListener('pointerup',(e)=>{
+      const b=e.target.closest?.('[data-new-game-flow],[data-confirm-reset],[data-reset]');
+      if(!b) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      startNewGameFlow();
+    },true);
+    document.addEventListener('touchend',(e)=>{
+      const b=e.target.closest?.('[data-new-game-flow],[data-confirm-reset],[data-reset]');
+      if(!b) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      startNewGameFlow();
+    },{capture:true,passive:false});
+    document.addEventListener('click',(e)=>{
+      const b=e.target.closest?.('[data-new-game-flow],[data-confirm-reset],[data-reset]');
+      if(!b) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      startNewGameFlow();
+    },true);
     document.addEventListener('pointerup',dispatchAction,true);
     document.addEventListener('touchend',dispatchAction,{capture:true,passive:false});
     document.addEventListener('click',dispatchAction,true);
