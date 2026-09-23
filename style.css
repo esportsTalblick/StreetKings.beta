@@ -219,3 +219,31 @@ border-color:#4c7857!important;box-shadow:inset 0 0 35px rgba(0,0,0,.25),0 8px 2
   font-size:14px;
   letter-spacing:.05em;
 }
+
+/* V8 manager systems */
+.page-action-stack{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.league-row .mini-form{font-size:9px;color:#818a86;letter-spacing:.5px;white-space:nowrap}
+.calendar-list,.team-overview-list,.contracts-list{display:grid;gap:8px}
+.calendar-row,.team-overview-row,.contract-row,.incoming-row{display:flex;align-items:center;gap:10px;width:100%;background:#0f1412;border:1px solid #29312e;border-radius:10px;padding:12px;text-align:left}
+.calendar-row .calendar-round{font-size:9px;color:#f4d03f;font-weight:900;min-width:54px}
+.calendar-row>div,.team-overview-row>div,.contract-row>div,.incoming-row>div{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+.calendar-row strong,.team-overview-row strong,.contract-row strong,.incoming-row strong{font-size:14px}
+.calendar-row small,.team-overview-row span,.contract-row span,.contract-row small,.incoming-row span,.incoming-row small{color:#89928d;font-size:11px}
+.calendar-row b,.team-overview-row>b{color:#22c55e}
+.team-overview-row .club-crest{width:42px;height:42px;flex:0 0 auto}
+.team-profile-card{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:8px 0 18px}.team-profile-card .club-crest{width:84px;height:84px}.team-profile-card strong{font-size:22px}.team-profile-card span{color:#8d9691}
+.contract-row button{flex:0 0 auto}.offer-state-tag{font-size:10px;color:#8d9691;text-transform:uppercase}
+.incoming-row.accepted{border-color:#245f42}.incoming-row.rejected{opacity:.65}.incoming-row .transfer-target-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.draft-rules{display:grid;gap:8px}.draft-rules span{padding:9px;border:1px solid #28312d;border-radius:8px;background:#0e1311;color:#a7b0ac;font-size:12px}.draft-card button:disabled{opacity:.42;filter:grayscale(.5)}
+.draft-candidate-grid{display:grid;gap:9px}.draft-pick{display:grid;grid-template-columns:58px 1fr auto;gap:9px;align-items:center;background:#101614;border:1px solid #2b332f;border-radius:10px;padding:9px}.draft-pick img{width:52px;height:60px;object-fit:contain}.draft-pick>div{display:flex;flex-direction:column;gap:3px}.draft-pick span,.draft-pick small{font-size:10px;color:#87918c}.draft-pick small{line-height:1.35}
+.coach-current{display:grid;gap:4px;padding:12px;border:1px solid #304139;border-radius:10px;background:#101714}.coach-current strong{font-size:18px}.coach-current span{color:#22c55e}.coach-current small{color:#86908b}
+.profile-meta{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}.profile-meta span{padding:10px;border:1px solid #29312e;border-radius:8px;background:#0f1412;font-size:11px;color:#8a938f}.profile-meta b{display:block;color:#e5e7eb;font-size:12px;margin-top:3px}
+.pregame-card{display:grid;gap:14px}.pregame-teams{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;text-align:center}.pregame-teams>div{display:flex;flex-direction:column;align-items:center;gap:4px}.pregame-teams .club-crest{width:64px;height:64px}.pregame-teams strong{font-size:14px}.pregame-teams small{color:#7e8883;font-size:9px}.pregame-teams b{color:#f4d03f}.pregame-teams>span{font-family:'Press Start 2P';font-size:12px;color:#f4d03f}.pregame-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.pregame-stats span{padding:9px;border:1px solid #29312e;border-radius:8px;background:#0f1412;font-size:10px;color:#9aa29e;text-align:center}.pregame-form{display:grid;grid-template-columns:1fr 1fr;gap:9px}.pregame-form>div{padding:10px;border:1px solid #29312e;border-radius:8px;background:#101614;display:flex;justify-content:space-between;gap:7px}.pregame-form b{color:#f4d03f;font-size:10px}.pregame-form span{font-size:11px}
+.welcome-intro{display:grid;gap:10px;text-align:center}.welcome-intro-logo{padding:3px 0}.welcome-intro-logo img{width:min(88%,340px);max-height:120px;object-fit:contain}.welcome-intro h2{font-size:21px;line-height:1.35;margin:4px 0}.welcome-intro h2 span{color:#22c55e}.welcome-intro p{color:#9ba49f;margin:0}.welcome-save-note{border:1px solid #6a5b18;background:#17170f;color:#e6e9e6;border-radius:10px;padding:12px;line-height:1.4;font-size:12px}
+.toast{z-index:100000}
+
+@media(max-width:390px){.pregame-teams .club-crest{width:54px;height:54px}.pregame-stats{grid-template-columns:1fr}.draft-pick{grid-template-columns:48px 1fr}.draft-pick img{width:44px;height:54px}.draft-pick .small-btn{grid-column:1/-1;width:100%}.incoming-row{align-items:flex-start;flex-wrap:wrap}.incoming-row img{width:48px;height:54px}.incoming-row .transfer-target-actions{width:100%;justify-content:flex-start}}
+
+/* V8.1 reliability + manager systems */
+.team-player-transfer-list{display:grid;gap:8px}.team-player-transfer{display:grid;grid-template-columns:48px 1fr auto;gap:9px;align-items:center;padding:9px;background:#08131a;border:1px solid #1d313b;border-radius:10px}.team-player-transfer>img{width:46px;height:54px;object-fit:contain;image-rendering:pixelated}.team-player-transfer>div:nth-child(2){display:flex;flex-direction:column;gap:2px;min-width:0}.team-player-transfer strong{font-size:12px}.team-player-transfer span{color:#8aa0aa;font-size:9px}.team-player-transfer small{color:#657780;font-size:8px}.team-player-transfer .transfer-target-actions{display:flex;flex-direction:column;gap:4px;min-width:72px}.modal-sheet{position:relative}.close-btn{z-index:4;position:relative;min-width:36px;min-height:36px;font-size:28px;line-height:1;display:grid;place-items:center;color:#e7eded;background:#141c20;border:1px solid #33454c;border-radius:8px}.close-btn:active{transform:scale(.96);background:#25343a}.modal-bar{position:sticky;top:0;z-index:3}.skm-start-card button{touch-action:manipulation}.skm-start-card img{background:#000}
+@media(max-width:390px){.team-player-transfer{grid-template-columns:44px 1fr}.team-player-transfer .transfer-target-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);min-width:0}.team-player-transfer .small-btn{font-size:8px;padding:7px 4px}}
