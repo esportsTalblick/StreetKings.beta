@@ -11,7 +11,7 @@
 (() => {
   'use strict';
 
-  const APP_KEY = 'streetKingsSaveV8';
+  const APP_KEY = 'streetKingsSaveV11';
   const LEGACY_KEYS = ['streetKingsSaveV7','streetKingsSaveV6','streetKingsSaveV5','streetKingsSaveV4','streetKingsSaveV3','streetKingsSaveV2','streetKingsSave'];
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -318,14 +318,15 @@
   function hardResetGame(){
     try{
       const keys=[];
-      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&/^streetKingsSave/i.test(k))keys.push(k);}
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k && /^(streetKings|skm)/i.test(k)) keys.push(k);
+      }
       keys.forEach(k=>localStorage.removeItem(k));
-      LEGACY_KEYS.forEach(k=>localStorage.removeItem(k));
       sessionStorage.clear();
-    }catch(e){console.warn('Reset local storage failed',e);}
-    // Force a true document reload so no in-memory state survives.
-    const u=new URL(location.href); u.searchParams.set('newgame',String(Date.now()));
-    location.replace(u.toString());
+    }catch(e){console.warn('Reset failed',e);}
+    // Do not reuse the old in-memory state: navigate to a clean document.
+    window.location.href=location.pathname+'?fresh='+Date.now();
   }
   function resetState(){hardResetGame();}
 
@@ -1224,6 +1225,14 @@
   function bindGlobal(){
     // Critical controls use a capture-phase handler so iOS Safari/touch overlays
     // cannot swallow the click before the normal delegated handler sees it.
+    const critical=(e)=>{
+      const b=e.target.closest?.('[data-confirm-reset],[data-reset]');
+      if(!b)return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      if(b.dataset.confirmReset) hardResetGame(); else if(b.dataset.reset) openNewGameModal();
+    };
+    document.addEventListener('pointerup',critical,true);
+    document.addEventListener('touchend',critical,{capture:true,passive:false});
     document.addEventListener('click',(e)=>{
       const b=e.target.closest?.('[data-confirm-reset],[data-reset],[data-settings-save],[data-export],[data-import]');
       if(!b)return;
@@ -1345,15 +1354,20 @@
     const splash=document.createElement('div');
     splash.id='skmStartupSplash';
     splash.innerHTML=`<div class="skm-start-card">
-      <img src="assets/screens/cover-talblick-mobile.jpg" alt="FC Talblick Street Kings Manager · Einrich Edition">
+      <img src="assets/screens/cover-talblick-mobile.jpg" alt="FC Talblick Street Kings Manager · Einrich Edition" onerror="this.onerror=null;this.src='assets/branding/logo-main.png'">
       <button type="button" id="skmStartButton">LOSLEGEN</button>
     </div>`;
     document.body.appendChild(splash);
+    let started=false;
     const close=()=>{
+      if(started)return; started=true;
       splash.classList.add('skm-start-hide');
-      setTimeout(()=>{splash.remove(); if(state.firstRun) showWelcome();},280);
+      setTimeout(()=>{splash.remove(); if(state.firstRun) showWelcome();},180);
     };
-    document.getElementById('skmStartButton')?.addEventListener('click',close,{once:true});
+    const b=document.getElementById('skmStartButton');
+    b?.addEventListener('pointerup',e=>{e.preventDefault();close();},{once:true});
+    b?.addEventListener('touchend',e=>{e.preventDefault();close();},{once:true,passive:false});
+    b?.addEventListener('click',e=>{e.preventDefault();close();},{once:true});
   }
 
   initState();
