@@ -54,7 +54,8 @@
   };
 
   function playerAvatar(p, accent='#41f3a5', small=false){
-    return p?.pos==='GK' ? 'assets/players/goalkeeper-yellow.png' : 'assets/players/outfield-white.png';
+    const gk = !!p && (p.pos==='GK' || p.isGK || /\bTW\b/i.test(p.pos||''));
+    return gk ? 'assets/players/goalkeeper-yellow.png' : 'assets/players/outfield-white.png';
   }
 
   function crest(team){return team?.logo || 'assets/branding/crest-mini.png';}
@@ -74,6 +75,31 @@
     return pos.map((p,i)=>makePlayer(i+Math.round(Math.random()*3),teamColor,p,quality));
   }
 
+  // FC Talblick roster: the names/positions/market figures supplied by the manager.
+  // Existing player objects are reused where possible so IDs/statistics remain stable.
+  function applyTalblickRoster(team){
+    if(!team || team.name!=='FC Talblick') return;
+    const spec=[
+      {name:'ILIJA',pos:'ZOM',value:1170000,delta:-30000,pct:-2.5},
+      {name:'LEON',pos:'RF',value:1010000,delta:-40000,pct:-3.8},
+      {name:'ZDRAVKO',pos:'LF / ZM / TW',value:870000,delta:-30000,pct:-3.3,isGK:true},
+      {name:'TOBIAS',pos:'ST',value:770000,delta:-30000,pct:-3.8},
+      {name:'KRISTIJAN',pos:'ZDM',value:730000,delta:30000,pct:4.3},
+      {name:'CHRIS',pos:'MS',value:580000,delta:-20000,pct:-3.3},
+      {name:'NILS',pos:'LF',value:480000,delta:-20000,pct:-4.0},
+      {name:'DANIEL',pos:'—',value:null,delta:null,pct:null}
+    ];
+    const old=Array.isArray(team.roster)?team.roster:[];
+    team.roster=spec.map((cfg,i)=>{
+      const p=old[i] || makePlayer(700+i,team.teamColor,cfg.pos==='—'?'MF':cfg.pos,Math.max(65,team.quality||68));
+      p.name=cfg.name; p.pos=cfg.pos; p.teamId=team.id; p.teamColor=team.teamColor;
+      if(cfg.isGK) p.isGK=true;
+      if(cfg.value!=null) p.value=cfg.value;
+      p.priceChange=cfg.delta; p.priceChangePct=cfg.pct;
+      return p;
+    });
+  }
+
   function slugify(s){return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
 
   function teamObj(name,city,quality,tier,color){
@@ -84,7 +110,10 @@
   }
 
   function buildTeams(){
-    return TEAM_NAMES.map((x,i)=>teamObj(x[0],x[1],i<9?74:i<18?68:62,i<9?1:i<18?2:3,i===0?'#39f2a5':null));
+    const teams=TEAM_NAMES.map((x,i)=>teamObj(x[0],x[1],i<9?74:i<18?68:62,i<9?1:i<18?2:3,i===0?'#39f2a5':null));
+    const talblick=teams.find(t=>t.name==='FC Talblick');
+    applyTalblickRoster(talblick);
+    return teams;
   }
 
   function makeLeague(teams,name,level){
@@ -176,13 +205,14 @@
       state.firstRun=false;saveState();
       return;
     }
-    Object.values(state.teams||{}).forEach(t=>{t.logo='assets/clubs/'+slugify(t.name)+'.png';});
+    Object.values(state.teams||{}).forEach(t=>{t.logo=t.logo||('assets/clubs/'+slugify(t.name)+'.png');});
     if(state.teams && !state.teams[state.userTeamId]) state.userTeamId=Object.keys(state.teams)[0];
     state.market=Array.isArray(state.market)?state.market:generateMarket(48); if(state.market.length<30) state.market=generateMarket(48); state.coaches=Array.isArray(state.coaches)?state.coaches:generateCoaches(); state.teamChosen = !!state.teamChosen; state.fans = state.fans || 77; state.news=Array.isArray(state.news)?state.news:[]; state.friendlies=Array.isArray(state.friendlies)?state.friendlies:[];
     state.date=new Date(state.date||Date.now());
     Object.values(state.teams||{}).forEach(t=>{
       t.roster ||= makeRoster(t.teamColor||'#39f2a5',t.quality||65); t.stats ||= {played:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,homeRevenue:0,shots:0,xg:0}; t.form ||= ['W','D','W','L','S'];
-      t.stadium ||= {name:`${t.name} Street Arena`,capacity:180,level:1,upgrades:{}}; t.stadium.upgrades ||= {}; t.youth ||= 1; t.budget ||= 120000; t.logo = `assets/clubs/${slugify(t.name)}.png`;
+      t.stadium ||= {name:`${t.name} Street Arena`,capacity:180,level:1,upgrades:{}}; t.stadium.upgrades ||= {}; t.youth ||= 1; t.budget ||= 120000; t.logo ||= `assets/clubs/${slugify(t.name)}.png`;
+      applyTalblickRoster(t);
     });
     Object.values(state.leagues||{}).forEach(l=>{l.standings ||= {};l.schedule ||= [];});
     state.liveMatch=null; state.version='4.0.0';
@@ -298,7 +328,7 @@
     const t=currentTeam();
     return `${pageHead('Verein','Kader, Spielerentwicklung und Startelf',`<button class="gold-btn" data-page="draft">DRAFT</button>`)}
       <div class="kpi-strip"><span><b>${Math.round(teamStrength(t))}</b><small>OVR</small></span><span><b>${t.roster.length}/12</b><small>KADER</small></span><span><b>${money(t.roster.reduce((s,p)=>s+p.value,0))}</b><small>WERT</small></span></div>
-      ${card('Kader',`<div class="player-list">${t.roster.map((p,i)=>`<article class="player-row"><button class="player-main" data-player="${p.id}"><img src="${playerAvatar(p,t.teamColor,true)}"><div><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.age} J. · Form ${p.form}%</span></div></button><div class="player-rating"><b>${p.rating}</b><small>${i<5?'STARTER':'BANK'}</small></div><button class="small-btn danger" data-sell="${p.id}" ${i<5?'disabled':''}>VERK.</button></article>`).join('')}</div>`)}
+      ${card('Kader',`<div class="player-list">${t.roster.map((p,i)=>`<article class="player-row"><button class="player-main" data-player="${p.id}"><img src="${playerAvatar(p,t.teamColor,true)}"><div><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.age} J. · Form ${p.form}%</span>${p.value?`<small class="value-line">${money(p.value)} ${p.priceChange==null?'':`<em class="${p.priceChange>=0?'up':'down'}">${p.priceChange>=0?'+':''}${money(p.priceChange)} · ${p.priceChangePct>=0?'▲':'▼'} ${Math.abs(p.priceChangePct||0).toFixed(1)}%</em>`}</small>`:''}</div></button><div class="player-rating"><b>${p.rating}</b><small>${i<5?'STARTER':'BANK'}</small></div><button class="small-btn danger" data-sell="${p.id}" ${i<5?'disabled':''}>VERK.</button></article>`).join('')}</div>`)}
       ${card('Trikots',`<div class="kit-showcase"><div><img src="assets/kits/home.png"><small>HOME</small></div><div><img src="assets/kits/away.png"><small>AWAY</small></div><div><img src="assets/kits/third.png"><small>THIRD</small></div><div><img src="assets/kits/goalkeeper.png"><small>KEEPER</small></div></div><div class="kit-sponsor-line"><span>HAUPTSPONSOR</span><b>${esc((t.sponsor||SPONSORS[0]).name)}</b><img src="${(t.sponsor||SPONSORS[0]).asset}" alt=""></div>`)}
       ${card('Entwicklung',`<div class="stats-bars"><div><span>Tempo</span><b>${Math.round(avg(t.roster,p=>p.skill.pace))}</b><i><em style="width:${avg(t.roster,p=>p.skill.pace)}%"></em></i></div><div><span>Schuss</span><b>${Math.round(avg(t.roster,p=>p.skill.shoot))}</b><i><em style="width:${avg(t.roster,p=>p.skill.shoot)}%"></em></i></div><div><span>Pass</span><b>${Math.round(avg(t.roster,p=>p.skill.pass))}</b><i><em style="width:${avg(t.roster,p=>p.skill.pass)}%"></em></i></div><div><span>Def</span><b>${Math.round(avg(t.roster,p=>p.skill.def))}</b><i><em style="width:${avg(t.roster,p=>p.skill.def)}%"></em></i></div></div>`)}
     `;
@@ -490,7 +520,7 @@
 
   function createLiveSim(H,A){
     const homeBases=[[8,50],[28,30],[28,70],[48,35],[53,50]], awayBases=[[92,50],[72,70],[72,30],[52,65],[47,50]];
-    const makeSide=(team,side,bases)=>team.roster.slice(0,5).map((p,i)=>({id:p.id,name:p.name,pos:p.pos,rating:p.rating,side,index:i,x:bases[i][0],y:bases[i][1],bx:bases[i][0],by:bases[i][1]}));
+    const makeSide=(team,side,bases)=>team.roster.slice().sort((a,b)=>Number(!!b.isGK)-Number(!!a.isGK)).slice(0,5).map((p,i)=>({id:p.id,name:p.name,pos:p.pos,rating:p.rating,side,index:i,x:bases[i][0],y:bases[i][1],bx:bases[i][0],by:bases[i][1]}));
     return {players:{home:makeSide(H,'home',homeBases),away:makeSide(A,'away',awayBases)},ball:{x:53,y:50,side:'home',index:4,mode:'hold',sx:53,sy:50,tx:53,ty:50,start:0,duration:0},nextDecisionAt:performance.now()+900,lastCommentAt:0,action:null,phase:'kickoff'};
   }
 
@@ -568,12 +598,14 @@
     const mates=(lm.sim.players[holder.side]||[]).filter(p=>p.index!==holder.index);
     if(!mates.length)return null;
     const dir=attackDir(holder.side);
-    mates.sort((a,b)=>{
-      const scoreA=dir*(a.x-holder.x)*1.5-distance(a,holder)*.25;
-      const scoreB=dir*(b.x-holder.x)*1.5-distance(b,holder)*.25;
-      return scoreB-scoreA;
-    });
-    return pick(mates.slice(0,Math.min(4,mates.length)))||mates[0];
+    const opp=lm.sim.players[otherSide(holder.side)]||[];
+    const score=p=>{
+      const forward=dir*(p.x-holder.x);
+      const lane=opp.length?Math.min(...opp.map(o=>distance(p,o))):40;
+      const lateral=Math.abs(p.y-holder.y);
+      return forward*2.0 + lane*1.35 - lateral*0.16 - distance(p,holder)*0.12 + Math.random()*2.5;
+    };
+    return mates.sort((a,b)=>score(b)-score(a))[0] || mates[0];
   }
 
   function chooseSetPiece(lm,holder,now,type){
@@ -643,9 +675,10 @@
       const target=choosePassTarget(lm,holder);
       if(target&&target!==holder){
         const d=distance(holder,target);
-        // Receiver moves into passing lane.
-        target.x=clamp(target.x+attackDir(holder.side)*(3+Math.random()*6),6,94);
-        sim.action={type:'pass',side:target.side,index:target.index,startX:b.x,startY:b.y,tx:target.x,ty:target.y,start:now,duration:420+d*8};
+        // Receiver moves only a little into a passing lane; other teammates hold shape.
+        const laneX=clamp(target.x+attackDir(holder.side)*(2+Math.random()*4),8,92);
+        const laneY=clamp(target.y+(Math.random()-.5)*5,12,88);
+        sim.action={type:'pass',side:target.side,index:target.index,startX:b.x,startY:b.y,tx:laneX,ty:laneY,start:now,duration:420+d*8};
         setupBallTravel(lm,target.side,target.index,sim.action.duration,'pass',target.x,target.y);
         addLiveEvent(`${holder.name.split(' ')[0]} spielt den Pass auf ${target.name.split(' ')[0]}.`,'pass');return;
       }
@@ -661,24 +694,75 @@
   }
 
   function updateLiveSimulation(now){
-    const lm=state.liveMatch,sim=lm.sim,b=sim.ball;
+    const lm=state.liveMatch,sim=lm.sim,b=sim.ball,holder=currentHolder(lm);
+    const homeShape=[[7,50],[27,30],[27,70],[47,37],[49,63]];
+    const awayShape=[[93,50],[73,70],[73,30],[53,63],[51,37]];
+
+    // Maintain a compact 5-a-side shape. Only the ball holder, one support runner,
+    // and the nearest defender react strongly to the ball; everyone else preserves spacing.
+    const holderSide=b.side;
+    const holderIndex=b.index;
+    const holderObj=currentHolder(lm);
+    const supportCandidates=holderObj?(sim.players[holderSide]||[]).filter(p=>p.index!==holderIndex):[];
+    let support=supportCandidates.length?supportCandidates.reduce((best,p)=>{
+      const d=distance(p,holderObj);return !best||d<best.d?{p,d}:best;
+    },null)?.p:null;
+    const forwardRunner=supportCandidates.length?supportCandidates.filter(p=>p!==support).reduce((best,p)=>{
+      const prog=attackDir(holderSide)*p.x;return !best||prog>best.prog?{p,prog}:best;
+    },null)?.p:null;
+
     for(const side of ['home','away']){
       const players=sim.players[side]||[];
+      const base=side==='home'?homeShape:awayShape;
+      const attacking=side===holderSide;
+      const dir=attackDir(side);
       players.forEach((p,i)=>{
-        const formation=side==='home'?[[8,50],[27,30],[27,70],[46,34],[50,55]][i]:[[92,50],[73,70],[73,30],[54,66],[50,45]][i];
-        const dx=clamp((b.x-50)*0.18,-10,10)*attackDir(side);
-        const dy=clamp((b.y-50)*0.22,-13,13);
-        let targetX=formation[0]+dx,targetY=formation[1]+dy;
-        const holder=(side===b.side&&i===b.index&&b.mode==='hold');
-        if(!holder){
-          // Active players chase, others keep shape.
-          if(distance(p,b)<18 || (sim.action&&sim.action.side===side&&sim.action.index===i)){targetX=b.x+(Math.random()-.5)*2;targetY=b.y+(Math.random()-.5)*2;}
-          p.x+= (targetX-p.x)*0.085; p.y+=(targetY-p.y)*0.085;
+        const [bx,by]=base[i];
+        const ballShiftX=clamp((b.x-50)*0.12*dir,-7,7);
+        const ballShiftY=clamp((b.y-50)*0.10,-7,7);
+        let targetX=bx+ballShiftX;
+        let targetY=by+ballShiftY;
+
+        // Team in possession stretches the pitch without collapsing toward the ball.
+        if(attacking){
+          targetX+=dir*5;
+          if(p===holderObj){targetX=b.x;targetY=b.y;}
+          else if(p===support){
+            targetX=clamp((holderObj?.x||bx)+dir*12,10,90);
+            targetY=clamp(by+(b.y-by)*0.32,15,85);
+          }else if(p===forwardRunner){
+            targetX=clamp((holderObj?.x||bx)+dir*24,14,86);
+            targetY=clamp(by+(Math.random()-.5)*2,12,88);
+          }
+        }else{
+          // Defending side: one presser, one cover player, three retain shape.
+          const opponents=sim.players[otherSide(side)]||[];
+          const nearest=opponents.reduce((best,o)=>!best||distance(p,o)<distance(best,o)?o:best,null);
+          const pressTarget=holderObj&&nearest&&nearest.side===holderObj.side;
+          const isPress=(pressTarget && distance(p,holderObj)<30 && (i===1||i===2));
+          if(isPress){
+            targetX=clamp((p.x*0.35)+(b.x*0.65)-dir*3,8,92);
+            targetY=clamp((p.y*0.35)+(b.y*0.65),14,86);
+          }else if(i===3 && holderObj){
+            targetX=clamp(b.x-dir*16,12,88);
+            targetY=clamp(by+(b.y-by)*0.20,18,82);
+          }
         }
+
+        if(sim.action && sim.action.side===side && sim.action.index===i){
+          // Active ball carrier follows the action; receivers move into their lane, not onto the ball.
+          if(sim.action.type==='dribble'||sim.action.type==='tackle'){targetX=b.x;targetY=b.y;}
+          else if(sim.action.type==='pass') {targetX=sim.action.tx;targetY=sim.action.ty;}
+        }
+
+        const smooth=(p===holderObj?0.32:(support===p||forwardRunner===p?0.12:0.075));
+        p.x+= (targetX-p.x)*smooth;
+        p.y+= (targetY-p.y)*smooth;
         p.x=clamp(p.x,4,96);p.y=clamp(p.y,6,94);
       });
     }
 
+    // Ball movement is tied to the active action, not to a free camera pan.
     if(sim.action){
       const a=sim.action,prog=clamp((now-a.start)/a.duration,0,1);
       const e=prog<.5?2*prog*prog:1-Math.pow(-2*prog+2,2)/2;
@@ -688,19 +772,19 @@
       if(actor&&(a.type==='dribble'||a.type==='tackle')){actor.x=b.x;actor.y=b.y;}
       if(prog>=1)resolveLiveAction(now,a);
     }else{
-      const holder=currentHolder(lm);
-      if(holder&&b.mode==='hold'){b.x=holder.x+attackDir(holder.side)*1.2;b.y=holder.y-4;b.z=0;}
+      const liveHolder=currentHolder(lm);
+      if(liveHolder&&b.mode==='hold'){b.x=liveHolder.x+attackDir(liveHolder.side)*1.1;b.y=liveHolder.y-2.5;b.z=0;}
       if(now>=sim.nextDecisionAt)chooseLiveAction(now);
     }
 
-    // Add occasional tactical incidents, independent of current action.
-    if(!sim.nextIncidentAt)sim.nextIncidentAt=now+4000+Math.random()*6000;
+    // Occasional match atmosphere without affecting positioning.
+    if(!sim.nextIncidentAt)sim.nextIncidentAt=now+4500+Math.random()*6500;
     if(now>sim.nextIncidentAt&&!sim.action){
-      const holder=currentHolder(lm);
-      if(holder&&Math.random()<0.45)addLiveEvent(`TRIBÜNENRAUSCHEN · ${holder.side==='home'?'Heimfans':'Gästeblock'} werden laut.`,'crowd');
-      sim.nextIncidentAt=now+5000+Math.random()*9000;
+      const h=currentHolder(lm);
+      if(h&&Math.random()<0.5)addLiveEvent(`TRIBÜNENRAUSCHEN · ${h.side==='home'?'Heimfans':'Gästeblock'} werden laut.`,'crowd');
+      sim.nextIncidentAt=now+6000+Math.random()*9000;
     }
-    lm.possession=clamp(lm.possession+(b.side==='home'?0.09:-0.09),28,72);
+    lm.possession=clamp(lm.possession+(b.side==='home'?0.055:-0.055),30,70);
   }
 
   function resolveLiveAction(now,a){
@@ -796,7 +880,7 @@
 
   function renderLiveMatch(){
     const lm=state.liveMatch,H=state.teams[lm.home],A=state.teams[lm.away];
-    const makePlayers=(side,team)=>lm.sim.players[side].map((p,i)=>`<div class="live-player ${side}" data-side="${side}" data-index="${i}"><img src="${i===0?'assets/players/goalkeeper-yellow.png':'assets/players/outfield-white.png'}" alt=""><b>${esc(p.name.split(' ')[0])}</b></div>`).join('');
+    const makePlayers=(side,team)=>lm.sim.players[side].map((p,i)=>`<div class="live-player ${side}" data-side="${side}" data-index="${i}"><img src="${playerAvatar(p,team.teamColor,true)}" alt=""><b>${esc(p.name.split(' ')[0])}</b></div>`).join('');
     openModal('LIVE SIMULATION',`
       <div class="live-score"><div><img src="${crest(H)}"><strong>${esc(H.name)}</strong></div><div><span class="live-time" id="liveTime">00:00</span><b id="liveScore">0 : 0</b><small id="liveHalfLabel">${esc(lm.weather.name)} · 1. HZ</small></div><div><img src="${crest(A)}"><strong>${esc(A.name)}</strong></div></div>
       <div class="live-action-banner" id="liveActionBanner"><span id="liveActionLabel">ANPFIFF</span><small id="liveActionText">Der Ball rollt.</small></div>
