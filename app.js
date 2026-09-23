@@ -891,9 +891,33 @@
   function simulateButton(){
     if(state.liveMatch)return;
     const leagueGame=nextUserGame();
-    if(leagueGame){startLiveMatch(leagueGame,'league');return;}
+    if(leagueGame){
+      prepareLeagueMatchday(leagueGame);
+      startLiveMatch(leagueGame,'league');
+      return;
+    }
     const friendly=state.friendlies.find(g=>!g.played); if(friendly){startLiveMatch(friendly,'friendly');return;}
     finishSeason();
+  }
+
+  function leagueForGame(game){
+    if(!game)return null;
+    for(const [id,l] of Object.entries(state.leagues||{})){
+      if((l.schedule||[]).some(g=>g.id===game.id)) return {id,l};
+    }
+    return null;
+  }
+
+  function prepareLeagueMatchday(game){
+    const found=leagueForGame(game);
+    if(!found||game.played)return;
+    const key=`${found.id}:${game.round}`;
+    state.matchdayPrepared=state.matchdayPrepared||{};
+    if(state.matchdayPrepared[key])return;
+    const results=simulateOtherGames(game.round,game.id,true);
+    state.matchdayPrepared[key]=true;
+    state.matchdayBrief=Array.isArray(results)?results.slice(0,8):[];
+    saveState();
   }
 
   function finishSeason(){
@@ -935,7 +959,7 @@
       gameId:game.id,type,home:H.id,away:A.id,hg:0,ag:0,weather,
       started:performance.now(),elapsed:0,matchClock:0,phase:'first',
       duration:TOTAL_MATCH_MS,halfShown:false,secondHalf:false,
-      events:[{t:0,text:`ANPFIFF · ${weather.icon} ${weather.name}` ,kind:'start'}],
+      events:[...(Array.isArray(state.matchdayBrief)?state.matchdayBrief.map(x=>({t:0,text:x.text,kind:'round'})):[]),{t:0,text:`ANPFIFF · ${weather.icon} ${weather.name}` ,kind:'start'}],
       possession:50,shotsH:0,shotsA:0,cornersH:0,cornersA:0,fouls:0,
       savesH:0,savesA:0,yellowH:0,yellowA:0,
       sim:createLiveSim(H,A)
@@ -947,27 +971,49 @@
 
   function runLiveFrame(now){
     const lm=state.liveMatch;if(!lm)return;
-    lm.elapsed=now-lm.started;
-    if(lm.elapsed>=lm.duration){lm.elapsed=lm.duration;lm.matchClock=120000;updateLiveDOM(now);finishLiveMatch();return;}
-    if(lm.elapsed<HALF_MS){
-      lm.matchClock=lm.elapsed;lm.phase='first';
-    }else if(lm.elapsed<HALF_MS+HALF_BREAK_MS){
-      lm.matchClock=HALF_MS;lm.phase='halftime';
-      if(!lm.halfShown){
-        lm.halfShown=true;
-        addLiveEvent(`HALBZEIT · ${lm.hg}:${lm.ag} · ${Math.round(lm.possession)}% Ballbesitz`, 'halftime');
-        showHalftimeOverlay();
+    try{
+      lm.elapsed=now-lm.started;
+      if(lm.elapsed>=lm.duration){
+        lm.elapsed=lm.duration;
+        lm.matchClock=120000;
+        lm.phase='second';
+        updateLiveDOM(now);
+        finishLiveMatch();
+        return;
       }
+      if(lm.elapsed<HALF_MS){
+        lm.matchClock=lm.elapsed;lm.phase='first';
+      }else if(lm.elapsed<HALF_MS+HALF_BREAK_MS){
+        lm.matchClock=HALF_MS;lm.phase='halftime';
+        if(!lm.halfShown){
+          lm.halfShown=true;
+          addLiveEvent(`HALBZEIT · ${lm.hg}:${lm.ag} · ${Math.round(lm.possession)}% Ballbesitz`, 'halftime');
+          showHalftimeOverlay();
+        }
+        updateLiveDOM(now);
+        window.__liveRAF=requestAnimationFrame(runLiveFrame);
+        return;
+      }else{
+        if(!lm.secondHalf){lm.secondHalf=true;lm.phase='second';hideHalftimeOverlay();addLiveEvent('ANPFIFF 2. HALBZEIT · Weiter geht’s!','start');}
+        lm.matchClock=HALF_MS+(lm.elapsed-(HALF_MS+HALF_BREAK_MS));lm.phase='second';
+      }
+      updateLiveSimulation(now);
       updateLiveDOM(now);
       window.__liveRAF=requestAnimationFrame(runLiveFrame);
-      return;
-    }else{
-      if(!lm.secondHalf){lm.secondHalf=true;lm.phase='second';hideHalftimeOverlay();addLiveEvent('ANPFIFF 2. HALBZEIT · Weiter geht’s!','start');}
-      lm.matchClock=HALF_MS+(lm.elapsed-(HALF_MS+HALF_BREAK_MS));lm.phase='second';
+    }catch(err){
+      console.error('Live-Simulation Fehler:',err);
+      // Ein Fehler in der Animation darf die Partie niemals einfrieren.
+      lm.matchClock=Math.min(120000,Math.max(lm.matchClock||0,120000));
+      try{finishLiveMatch(true);}catch(finalErr){
+        console.error('Live-Abpfiff Fehler:',finalErr);
+        cancelAnimationFrame(window.__liveRAF);
+        window.__liveRAF=null;
+        state.liveMatch=null;
+        saveState();
+        renderPage();
+        toast('Spiel beendet','Das Ergebnis wurde sicher gespeichert.');
+      }
     }
-    updateLiveSimulation(now);
-    updateLiveDOM(now);
-    window.__liveRAF=requestAnimationFrame(runLiveFrame);
   }
 
   function findSimPlayer(lm,side,index){return lm.sim.players[side]?.[index]||null}
@@ -1354,27 +1400,75 @@
     if(hg>ag){rowH.wins++;rowH.points+=3;rowA.losses++;} else if(ag>hg){rowA.wins++;rowA.points+=3;rowH.losses++;} else {rowH.draws++;rowA.draws++;rowH.points++;rowA.points++;}
     const H=state.teams[game.home],A=state.teams[game.away]; if(H&&A){H.stats.played++;A.stats.played++;H.stats.gf+=hg;H.stats.ga+=ag;A.stats.gf+=ag;A.stats.ga+=hg;H.form=(H.form||[]).concat(hg>ag?'W':hg===ag?'D':'L').slice(-5);A.form=(A.form||[]).concat(ag>hg?'W':ag===hg?'D':'L').slice(-5);H.roster.slice(0,5).forEach(p=>p.games++);A.roster.slice(0,5).forEach(p=>p.games++);}
   }
-  function simulateOtherGames(round,excludeId){
-    for(const l of Object.values(state.leagues||{})) for(const g of l.schedule||[]){
-      if(g.played||g.id===excludeId||g.round!==round)continue;
-      const H=state.teams[g.home],A=state.teams[g.away]; if(!H||!A)continue;
-      const hs=teamStrength(H),as=teamStrength(A),total=hs+as; let hg=Math.max(0,Math.round((Math.random()*2.6)*(hs/Math.max(1,total))*1.25)),ag=Math.max(0,Math.round((Math.random()*2.6)*(as/Math.max(1,total))*1.25));
-      if(Math.random()<.28){if(hs>as)hg++;else ag++;} applyResultForLeague(g,hg,ag,pick(WEATHER),l.id);
+  function simulateOtherGames(round,excludeId,collect=false){
+    const results=[];
+    for(const [leagueId,l] of Object.entries(state.leagues||{})){
+      for(const g of l.schedule||[]){
+        if(g.played||g.id===excludeId||g.round!==round)continue;
+        const H=state.teams[g.home],A=state.teams[g.away]; if(!H||!A)continue;
+        const hs=teamStrength(H),as=teamStrength(A),total=Math.max(1,hs+as);
+        let hg=Math.max(0,Math.round((Math.random()*2.6)*(hs/total)*1.25)),ag=Math.max(0,Math.round((Math.random()*2.6)*(as/total)*1.25));
+        if(Math.random()<.28){if(hs>as)hg++;else ag++;}
+        const weather=pick(WEATHER);
+        applyResultForLeague(g,hg,ag,weather,leagueId);
+        results.push({leagueId,round,text:`ERGEBNIS · ${H.name} ${hg}:${ag} ${A.name}`});
+      }
     }
+    return results;
   }
-  function finishLiveMatch(){
+
+  function finishLiveMatch(fromError=false){
     const lm=state.liveMatch; if(!lm||lm.finishing)return; lm.finishing=true;
     cancelAnimationFrame(window.__liveRAF); window.__liveRAF=null;
-    const game=findGame(lm.gameId,lm.type); if(!game){state.liveMatch=null;renderPage();return;}
-    const weather=lm.weather||pick(WEATHER); applyFinalResult(game,lm.hg,lm.ag,weather,lm.type,lm.shotsH,lm.shotsA);
-    state.lastMatch={home:lm.home,away:lm.away,hg:lm.hg,ag:lm.ag,weather:weather.name,type:lm.type,date:Date.now()};
-    state.liveMatch=null; saveState();
-    openModal('ABPFIFF',`<div class="fulltime-card"><div class="fulltime-score"><strong>${esc(state.teams[lm.home]?.name||'Heim')}</strong><b>${lm.hg} : ${lm.ag}</b><strong>${esc(state.teams[lm.away]?.name||'Gast')}</strong></div><p>Die Partie ist beendet. Tabelle, Form und Statistiken wurden aktualisiert.</p><button class="gold-btn wide" data-close>WEITER</button></div>`,{kicker:'ENDSTAND'});
+    const game=findGame(lm.gameId,lm.type);
+    if(!game){state.liveMatch=null;saveState();renderPage();return;}
+    const weather=lm.weather||pick(WEATHER);
+    let resultError=null;
+    try{
+      applyFinalResult(game,lm.hg,lm.ag,weather,lm.type,lm.shotsH,lm.shotsA);
+    }catch(err){
+      resultError=err;
+      console.error('Abpfiff konnte nicht vollständig verarbeitet werden:',err);
+      // Minimaler Fallback: Ergebnis trotzdem sichern.
+      try{
+        if(!game.played){
+          if(lm.type==='league'){
+            const league=leagueForGame(game);
+            if(league)applyResultForLeague(game,lm.hg,lm.ag,weather,league.id);
+          }else{
+            game.played=true; game.result={hg:lm.hg,ag:lm.ag,weather:weather.name};
+          }
+        }
+      }catch(fallbackErr){ console.error('Ergebnis-Fallback fehlgeschlagen:',fallbackErr); }
+    }finally{
+      state.lastMatch={home:lm.home,away:lm.away,hg:lm.hg,ag:lm.ag,weather:weather.name,type:lm.type,date:Date.now()};
+      state.liveMatch=null;
+      state.matchdayBrief=[];
+      saveState();
+    }
+    const note=resultError?'<p>Das Spiel wurde beendet und das Ergebnis sicher gespeichert.</p>':'<p>Die Partie ist beendet. Tabelle, Form und Statistiken wurden aktualisiert.</p>';
+    openModal('ABPFIFF',`<div class="fulltime-card"><div class="fulltime-score"><strong>${esc(state.teams[lm.home]?.name||'Heim')}</strong><b>${lm.hg} : ${lm.ag}</b><strong>${esc(state.teams[lm.away]?.name||'Gast')}</strong></div>${note}<button class="gold-btn wide" data-close>WEITER</button></div>`,{kicker:'ENDSTAND'});
   }
+
+  function checkSeasonCompletion(){
+    const l=currentLeague();
+    if(!l)return false;
+    const remaining=(l.schedule||[]).some(g=>!g.played);
+    if(remaining)return false;
+    // Saisonabschluss niemals mitten in einem laufenden Match auslösen.
+    if(state.liveMatch)return false;
+    setTimeout(()=>{
+      if(state.liveMatch)return;
+      const nowLeague=currentLeague();
+      if(nowLeague && !(nowLeague.schedule||[]).some(g=>!g.played)) finishSeason();
+    },120);
+    return true;
+  }
+
   function applyFinalResult(game,hg,ag,weather,type,shotsH=0,shotsA=0){
     const H=state.teams[game.home],A=state.teams[game.away];if(!H||!A||game.played)return;
     let league=null,leagueId=null;for(const [id,l] of Object.entries(state.leagues)){if(l.schedule.some(g=>g.id===game.id)){league=l;leagueId=id;break;}}
-    if(type==='league'){applyResultForLeague(game,hg,ag,weather,leagueId);state.gamesSinceDraft++;simulateOtherGames(game.round,game.id);state.week=Math.max(state.week,game.round+1);state.date=new Date(state.date.getTime()+7*86400000);}else{game.played=true;game.result={hg,ag,weather:weather.name};const fin=H.finance||{};H.budget+=2500;H.roster.slice(0,5).forEach(p=>p.games++);A.roster.slice(0,5).forEach(p=>p.games++);evolveTeamPlayers(H);evolveTeamPlayers(A);}
+    if(type==='league'){applyResultForLeague(game,hg,ag,weather,leagueId);state.gamesSinceDraft++;state.week=Math.max(state.week,game.round+1);state.date=new Date(state.date.getTime()+7*86400000);}else{game.played=true;game.result={hg,ag,weather:weather.name};const fin=H.finance||{};H.budget+=2500;H.roster.slice(0,5).forEach(p=>p.games++);A.roster.slice(0,5).forEach(p=>p.games++);evolveTeamPlayers(H);evolveTeamPlayers(A);}
     maybeGenerateIncomingOffers();
     updateCoachAfterMatch();
     checkSeasonCompletion();
