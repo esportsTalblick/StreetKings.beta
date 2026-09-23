@@ -283,3 +283,19 @@ border-color:#4c7857!important;box-shadow:inset 0 0 35px rgba(0,0,0,.25),0 8px 2
 @media(min-width:520px){.onboarding-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
 /* V16: reliable career reset + touch targets */
 .reset-career-box{display:grid;gap:14px;padding:2px 0 4px}.reset-career-box strong{display:block;color:#f4d03f;font-family:'Press Start 2P',system-ui,sans-serif;font-size:11px;letter-spacing:.08em}.reset-career-box p{margin:8px 0 0;color:#9ca3af;line-height:1.5;font-size:13px}.danger-start{border:1px solid rgba(239,68,68,.55);box-shadow:0 10px 24px rgba(239,68,68,.12)}.close-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-width:42px;min-height:42px;display:grid;place-items:center;cursor:pointer}.small-btn,.action-tile,.gold-btn,.ghost-btn,.team-select-card,[data-renew-contract],[data-new-game-flow]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+
+/* V20: stable full-viewport overlays + weekly server restart notice */
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+#app{width:100%;min-height:100dvh}
+.mobile-app{width:100%;max-width:560px;min-height:100dvh;overflow:visible}
+#modalRoot{position:relative;z-index:99990}
+#modalRoot:empty{display:none}
+.modal-layer{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-width:100vw;display:flex!important;align-items:center!important;justify-content:center!important;padding:12px!important;z-index:99999!important}
+.modal-sheet{width:min(430px,calc(100vw - 24px))!important;max-width:430px!important;max-height:92dvh!important;margin:0 auto!important;overflow:auto!important}
+.modal-layer.full .modal-sheet{width:100vw!important;max-width:560px!important;height:100dvh!important;max-height:100dvh!important}
+.close-btn{position:relative!important;z-index:20!important;pointer-events:auto!important;touch-action:manipulation!important}
+.weekly-reset-notice{display:grid;grid-template-columns:42px 1fr;gap:11px;align-items:start;padding:13px;border:1px solid rgba(244,208,63,.45);background:linear-gradient(180deg,#15160d,#0e120f);border-radius:13px}
+.weekly-reset-icon{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;background:#2a2510;color:#f4d03f;font-size:25px;font-weight:900}
+.weekly-reset-notice strong{display:block;color:#f4d03f;font-size:14px}.weekly-reset-notice p{margin:4px 0;color:#c0c7c3;font-size:11px;line-height:1.4}.weekly-reset-notice small{display:block;color:#7e8b85;font-size:9px;line-height:1.35}
+.weekly-reset-banner{display:flex;gap:8px;align-items:center;padding:9px 11px;margin-bottom:10px;border:1px solid rgba(244,208,63,.35);border-radius:11px;background:#15150e}.weekly-reset-banner b{font-size:9px;color:#f4d03f;letter-spacing:.08em}.weekly-reset-banner span{font-size:9px;color:#89948e}
+@media(max-width:430px){.modal-layer{padding:8px!important}.modal-sheet{width:calc(100vw - 16px)!important}.onboarding-screen{width:100%;min-height:100dvh}.onboarding-card{width:100%}}

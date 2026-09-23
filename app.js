@@ -11,8 +11,9 @@
 (() => {
   'use strict';
 
-  const APP_KEY = 'streetKingsSaveV19';
-  const APP_VERSION = '19.0.0';
+  const APP_KEY = 'streetKingsSaveV20';
+  const APP_VERSION = '20.0.0';
+  const WEEKLY_RESET_KEY = 'streetKingsWeeklyResetV20';
   const LEGACY_KEYS = ['streetKingsSaveV15','streetKingsSaveV14','streetKingsSaveV13','streetKingsSaveV12','streetKingsSaveV11','streetKingsSaveV10','streetKingsSaveV9','streetKingsSaveV8','streetKingsSaveV7','streetKingsSaveV6','streetKingsSaveV5','streetKingsSaveV4','streetKingsSaveV3','streetKingsSaveV2','streetKingsSave'];
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -124,6 +125,42 @@
       sessionStorage.clear();
     }catch(e){ console.warn('Save cleanup failed',e); }
   }
+  function sundayResetBoundary(now=new Date()){
+    const d=new Date(now);
+    const day=d.getDay();
+    const daysSinceSunday=day;
+    const boundary=new Date(d);
+    boundary.setHours(22,0,0,0);
+    boundary.setDate(d.getDate()-daysSinceSunday);
+    if(d < boundary) boundary.setDate(boundary.getDate()-7);
+    return boundary;
+  }
+  function performWeeklyServerReset(){
+    if(state.liveMatch){ state._pendingWeeklyReset=true; return false; }
+    const boundary=sundayResetBoundary();
+    const stamp=String(boundary.getTime());
+    try{ if(localStorage.getItem(WEEKLY_RESET_KEY)===stamp) return false; }catch(_){}
+    clearSaveKeys();
+    try{localStorage.setItem(WEEKLY_RESET_KEY,stamp);}catch(_){}
+    buildFreshCareer({save:false});
+    state.version=APP_VERSION;
+    state.weeklyResetNotice={boundary:boundary.toISOString(),message:'Sonntag 22:00 · Server-Neustart: Neue Mannschaft auswählen.'};
+    saveState();
+    render();
+    setTimeout(()=>toast('SERVER-RESTART','Sonntag 22:00 · Eine neue Mannschaft kann gewählt werden.'),80);
+    return true;
+  }
+  function checkWeeklyServerReset(){
+    const now=new Date();
+    const boundary=sundayResetBoundary(now);
+    if(now.getDay()===0 && now.getHours()===22 && now.getMinutes()<2){
+      if(state.liveMatch){state._pendingWeeklyReset=true;return;}
+      performWeeklyServerReset();
+      return;
+    }
+    if(state._pendingWeeklyReset && !state.liveMatch){ state._pendingWeeklyReset=false; performWeeklyServerReset(); }
+  }
+
   function buildFreshCareer({save=false}={}){
     const fresh=blankState();
     Object.keys(state).forEach(k=>delete state[k]);
@@ -141,7 +178,7 @@
       {title:'Marktplatz geöffnet',body:'Talente beobachten den Markt. Gute Angebote werden beantwortet.',kind:'market'},
       {title:'Trainerkarussell',body:'Coaches bewerten neue Projekte nach Ambition, Budget und Tabellenplatz.',kind:'coach'}
     ];
-    state.friendlies=[]; state.firstRun=true; state.teamChosen=false; state.pendingTeamId=null; state.introStage='club'; state.active='home'; state.liveMatch=null; state.lastMatch=null;
+    state.friendlies=[]; state.firstRun=true; state.teamChosen=false; state.pendingTeamId=null; state.userTeamId=null; state.introStage='club'; state.active='home'; state.liveMatch=null; state.lastMatch=null; state._pendingWeeklyReset=false;
     if(save) saveState();
     return state;
   }
@@ -350,7 +387,8 @@
       return;
     }
     Object.values(state.teams||{}).forEach(t=>{t.logo=clubLogoForTeam(t)||('assets/clubs/'+slugify(t.name)+'.png');});
-    if(state.teams && !state.teams[state.userTeamId]) state.userTeamId=Object.keys(state.teams)[0];
+    if(state.teamChosen && state.teams && !state.teams[state.userTeamId]) state.userTeamId=null;
+    if(!state.teamChosen) state.userTeamId=null;
     state.market=Array.isArray(state.market)?state.market:generateMarket(48); if(state.market.length<48) state.market=generateMarket(48); state.coaches=Array.isArray(state.coaches)?state.coaches:generateCoaches(); if(state.coaches.length<150) state.coaches=generateCoaches(); state.transferOffers=Array.isArray(state.transferOffers)?state.transferOffers:[]; state.transferInquiries=Array.isArray(state.transferInquiries)?state.transferInquiries:[]; state.incomingOffers=Array.isArray(state.incomingOffers)?state.incomingOffers:[]; state.incomingOffersCooldown=Number(state.incomingOffersCooldown||0); state.contractInbox=Array.isArray(state.contractInbox)?state.contractInbox:[]; state.draftHistory=Array.isArray(state.draftHistory)?state.draftHistory:[]; state.gamesSinceDraft=Number(state.gamesSinceDraft||0); state.freeGoldDraftUsed=!!state.freeGoldDraftUsed; state.calendarLeague=state.calendarLeague||'all'; state.lastSavedAt=state.lastSavedAt||null; state.teamChosen = !!state.teamChosen; state.fans = state.fans || 77; state.news=Array.isArray(state.news)?state.news:[]; state.friendlies=Array.isArray(state.friendlies)?state.friendlies:[];
     state.pendingTeamId=state.pendingTeamId||null; if(state.teamChosen){state.firstRun=false;state.introStage='done';state.pendingTeamId=null;} else {state.introStage=state.introStage||'welcome';} state.coachContacts=Array.isArray(state.coachContacts)?state.coachContacts:[]; state.coachHistory=Array.isArray(state.coachHistory)?state.coachHistory:[]; state._coachPulse=Number(state._coachPulse||0); state._marketPulse=Number(state._marketPulse||0);
     ensureManagerSystems();
@@ -429,8 +467,6 @@
       </header>
       <main id="view" class="view"></main>
       <nav class="bottom-nav">${bottom.map(([k,ico,label])=>`<button data-bottom="${k}" class="${state.active===k?'active':''}"><span>${emoji(ico)}</span><small>${label}</small></button>`).join('')}</nav>
-      <div id="modalRoot"></div>
-      <div id="toast" class="toast"><strong id="toastTitle"></strong><span id="toastBody"></span></div>
     </div>`;
   }
 
@@ -442,6 +478,7 @@
     const stand=standings(l), liveListings=state.market.slice().sort((a,b)=>b.currentPrice-a.currentPrice).slice(0,4);
     const quick=[['team','team','Verein'],['tactics','tactics','Team'],['games','games','Spielen'],['league','league','Liga'],['transfers','transfers','Transfers'],['market','market','Marktplatz'],['city','city','Stadt'],['news','news','News']];
     return `<section class="home-screen">
+      ${state.weeklyResetNotice?`<div class="weekly-reset-banner"><b>↻ SERVER-NEUSTART</b><span>Sonntag 22:00 · danach neue Mannschaft wählen</span></div>`:''}
       <div class="home-meta"><div><span>SAISON ${state.season}</span><b>· WOCHE ${state.week}</b></div><div><strong>${money(t.budget)}</strong><span> · 😎 ${Math.round(teamStrength(t))}</span></div></div>
       <section class="home-hero exact-sheet-hero">
         <div class="hero-overlay"></div>
@@ -716,7 +753,8 @@
     const t=currentTeam(),saved=state.lastSavedAt?`${dateDE(new Date(state.lastSavedAt))} · ${timeDE(new Date(state.lastSavedAt))}`:'noch nie';
     return `${pageHead('Einstellungen','Profile, Savegames und Spielstart')}
       ${card('Managerprofil',`<label class="input-label">Managername<input class="text-input" id="managerName" value="${esc(state.manager)}"></label><label class="input-label">Vereinsname<input class="text-input" id="teamName" value="${esc(t.name)}"></label><label class="input-label">Arena<input class="text-input" id="stadiumName" value="${esc(t.stadium.name)}"></label><button type="button" class="gold-btn wide" data-settings-save>SPEICHERN</button><div class="save-status">Zuletzt gespeichert: <b>${esc(saved)}</b></div>`)}
-      ${card('Spielstand',`<div class="action-grid"><button type="button" class="action-tile" data-export><b>↑</b><small>EXPORTIEREN</small></button><button type="button" class="action-tile" data-import><b>↓</b><small>IMPORTIEREN</small></button></div><div class="save-help">Export erstellt eine echte JSON-Datei. Import kann auch ältere Street-Kings-Saves erkennen und übernimmt sie in dieses Spiel.</div>`)}
+      ${card('Spielstand',`<div class="action-grid"><button type="button" class="action-tile" data-export><b>↑</b><small>EXPORTIEREN</small></button><button type="button" class="action-tile" data-import><b>↓</b><small>IMPORTIEREN</small></button></div><div class="save-help">Export erstellt eine echte JSON-Datei. Import prüft den Spielstand vor der Übernahme.</div>`)}
+      ${card('Hinweis · Server-Neustart',`<div class="weekly-reset-notice"><div class="weekly-reset-icon">↻</div><div><strong>Jeden Sonntag um 22:00 Uhr</strong><p>Der Browser simuliert den wöchentlichen Server-Neustart. Die aktuelle Karriere wird zurückgesetzt und du wählst anschließend eine neue Mannschaft.</p><small>Der Reset wird auch ausgeführt, wenn du die Seite erst nach 22:00 Uhr wieder öffnest.</small></div></div>`)}
       ${card('Karriere',`<div class="reset-career-box"><div><strong>NEUE MANAGERKARRIERE</strong><p>Die aktuelle Karriere wird vollständig gelöscht. Danach öffnet sich direkt die Vereinsauswahl.</p></div><button type="button" class="gold-btn wide danger-start" data-new-game-flow>↻ KARRIERE NEU STARTEN · TEAM WÄHLEN</button></div>`)}
       ${card('Über das Spiel',`<p class="muted">Street Kings: Manager · Browser Edition · Katzenelnbogen · 5er Street Soccer · Touch-first UI</p>`)}
     `;
@@ -834,8 +872,8 @@
   function render(){
     ensureClubLogoCSS();
     if(!state.teamChosen){
-      $('#app').innerHTML=renderTeamOnboarding();
       $('#modalRoot').innerHTML='';
+      $('#app').innerHTML=renderTeamOnboarding();
       bindPriorityTouchControls();
       return;
     }
@@ -1774,10 +1812,12 @@
 
 
   initState();
-  if(new URLSearchParams(location.search).has('newgame')){ buildFreshCareer({save:false}); }
+  checkWeeklyServerReset();
+  if(new URLSearchParams(location.search).has('newgame')){ clearSaveKeys(); buildFreshCareer({save:false}); }
   state.version=APP_VERSION;
   ensureManagerSystems();
   if(state.teamChosen) saveState();
   render();
   bindGlobal();
+  if(!window.__weeklyResetTimer) window.__weeklyResetTimer=setInterval(checkWeeklyServerReset,30000);
 })();
