@@ -292,10 +292,41 @@
     const league=currentLeague(); return league?.schedule.find(g=>!g.played && (g.home===state.userTeamId || g.away===state.userTeamId));
   }
   function teamStrength(t){
-    const starters=t.roster.slice(0,5); const base=avg(starters,p=>p.rating); const coach=state.coaches.find(c=>c.id===t.coach); const boost=coach?coach.boost:0; const form=(t.form||[]).filter(x=>x==='W').length-(t.form||[]).filter(x=>x==='L').length;
+    const starters=t.roster.slice(0,5);
+    const base=starters.length ? starters.reduce((sum,p,i)=>{
+      const role=getLineupRole(t,p,i);
+      return sum + (role.inGoal&&!role.suitable ? Math.max(22, p.rating*0.48) : p.rating);
+    },0)/starters.length : 0;
+    const coach=state.coaches.find(c=>c.id===t.coach); const boost=coach?coach.boost:0; const form=(t.form||[]).filter(x=>x==='W').length-(t.form||[]).filter(x=>x==='L').length;
     return base*(1+boost/100)*(1+form*0.012);
   }
   function marketLabel(pos){return pos==='GK'?'TW':pos;}
+
+  function isGoalkeeperEligible(p){
+    return !!p && (p.pos==='GK' || p.isGK || /\bTW\b/i.test(p.pos||''));
+  }
+
+  function getLineupCoords(t,p,i){
+    const defaults=formationPositions();
+    return (state.lineupPositions?.[t.id]?.[p.id]) || defaults[i] || {x:50,y:50};
+  }
+
+  function getLineupRole(t,p,i){
+    const c=getLineupCoords(t,p,i);
+    // In the manager's field view, the own goal is at the bottom.
+    // A player dragged into the central goal zone is treated as goalkeeper.
+    const inGoal=(c.y>=79 && c.x>=34 && c.x<=66);
+    const suitable=isGoalkeeperEligible(p);
+    if(inGoal){
+      return {inGoal:true,suitable,label:'TOR',displayRating:suitable?p.rating:Math.max(18,Math.round(p.rating*0.45)),moveFactor:suitable?0.58:0.18};
+    }
+    return {inGoal:false,suitable:true,label:marketLabel(p.pos),displayRating:p.rating,moveFactor:1};
+  }
+
+  function lineupDisplay(t,p,i){
+    const role=getLineupRole(t,p,i);
+    return role.inGoal ? `TOR ${role.displayRating}${role.suitable?'':' · ungeeignet'}` : `${role.label} ${role.displayRating}`;
+  }
 
   function toast(title,body=''){const el=$('#toast');if(!el)return;$('#toastTitle',el).textContent=title;$('#toastBody',el).textContent=body;el.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove('show'),3200);}
 
@@ -382,10 +413,9 @@
   }
 
   function renderLineupCard(){
-    const t=currentTeam(),players=t.roster.slice(0,5),defaults=formationPositions();
+    const t=currentTeam(),players=t.roster.slice(0,5);
     state.lineupPositions[t.id]=state.lineupPositions[t.id]||{};
-    const coordsFor=(p,i)=>state.lineupPositions[t.id][p.id]||defaults[i];
-    return `<section class="card lineup-card"><div class="section-head"><div><div class="section-kicker">AUFSTELLUNG</div><h2>4 + 1 · ${esc(state.tactic)}</h2><small class="drag-hint">Spieler gedrückt halten und ziehen</small></div><button class="ghost-btn" data-page="tactics">Taktik</button></div><div class="field-mobile" data-lineup-field><div class="field-mark center"></div><div class="field-mark box top"></div><div class="field-mark box bottom"></div><div class="field-mark line"></div>${players.map((p,i)=>{const c=coordsFor(p,i);return `<button class="field-player draggable-player" style="left:${c.x}%;top:${c.y}%" data-player="${p.id}" data-drag-player="${p.id}" aria-label="${esc(p.name)} verschieben"><span class="drag-grip">✥</span><img src="${playerAvatar(p,t.teamColor,true)}"><b>${esc(p.name.split(' ')[0])}</b><span>${marketLabel(p.pos)} ${p.rating}</span></button>`}).join('')}</div><div class="team-bars"><div><span>OFF</span><b>${Math.round(avg(players,p=>p.skill.shoot))}</b><i><em style="width:${avg(players,p=>p.skill.shoot)}%"></em></i></div><div><span>PASS</span><b>${Math.round(avg(players,p=>p.skill.pass))}</b><i><em style="width:${avg(players,p=>p.skill.pass)}%"></em></i></div><div><span>DEF</span><b>${Math.round(avg(players,p=>p.skill.def))}</b><i><em style="width:${avg(players,p=>p.skill.def)}%"></em></i></div></div></section>`;
+    return `<section class="card lineup-card"><div class="section-head"><div><div class="section-kicker">AUFSTELLUNG</div><h2>4 + 1 · ${esc(state.tactic)}</h2><small class="drag-hint">Spieler gedrückt halten und ziehen · Tor = TOR</small></div><button class="ghost-btn" data-page="tactics">Taktik</button></div><div class="field-mobile" data-lineup-field><div class="field-mark center"></div><div class="field-mark box top"></div><div class="field-mark box bottom"></div><div class="field-mark line"></div>${players.map((p,i)=>{const c=getLineupCoords(t,p,i);const role=getLineupRole(t,p,i);return `<button class="field-player draggable-player ${role.inGoal?'is-goalkeeper-role':''} ${role.inGoal&&!role.suitable?'gk-warn':''}" style="left:${c.x}%;top:${c.y}%" data-player="${p.id}" data-drag-player="${p.id}" aria-label="${esc(p.name)} verschieben"><span class="drag-grip">✥</span><img src="${playerAvatar(p,t.teamColor,true)}"><b>${esc(p.name.split(' ')[0])}</b><span>${esc(lineupDisplay(t,p,i))}</span></button>`}).join('')}</div><div class="team-bars"><div><span>OFF</span><b>${Math.round(avg(players,p=>p.skill.shoot))}</b><i><em style="width:${avg(players,p=>p.skill.shoot)}%"></em></i></div><div><span>PASS</span><b>${Math.round(avg(players,p=>p.skill.pass))}</b><i><em style="width:${avg(players,p=>p.skill.pass)}%"></em></i></div><div><span>DEF</span><b>${Math.round(avg(players,p=>p.skill.def))}</b><i><em style="width:${avg(players,p=>p.skill.def)}%"></em></i></div></div></section>`;
   }
 
   function renderTeam(){
@@ -407,11 +437,16 @@
   }
 
   function renderLeague(){
-    const l=currentLeague(),stand=standings(l);
-    return `${pageHead('Liga',esc(l.name),`<span class="rank-pill">${stand.findIndex(x=>x.teamId===state.userTeamId)+1}. Platz</span>`)}
-      ${card('Tabelle',`<div class="league-list">${stand.map((s,i)=>{const t=state.teams[s.teamId];return `<div class="league-row ${t.id===state.userTeamId?'me':''}"><b>${i+1}</b><img class="club-crest" src="${crest(t)}" alt=""><div><strong>${esc(t.name)}</strong><span>${esc(t.city)}</span></div><strong>${s.points}</strong><small>${s.gf}:${s.ga}</small></div>`}).join('')}</div>`)}
-      ${card('Auf- & Abstieg',`<div class="promotion"><span><b>▲</b> Platz 1–2</span><span class="muted">Aufstieg</span><span><b class="red-txt">▼</b> letzter 2</span><span class="muted">Abstieg</span></div>`)}
-    `;
+    const current=currentLeague();
+    const rank=standings(current).findIndex(x=>x.teamId===state.userTeamId)+1;
+    const leagueIds=['L1','L2','L3'];
+    const leagueCards=leagueIds.map(id=>{
+      const l=state.leagues[id];
+      if(!l) return '';
+      const stand=standings(l);
+      return card(`${id==='L1'?'👑 LIGA 1':id==='L2'?'⚪ LIGA 2':'🟠 LIGA 3'} · ${esc(l.name)}`,`<div class="league-table-meta"><span>${stand.length} Teams</span><span>${l.level===1?'KREISLIGA A':l.level===2?'KREISLIGA B':'KREISLIGA C'}</span></div><div class="league-list full-league">${stand.map((s,i)=>{const t=state.teams[s.teamId];return `<div class="league-row ${t.id===state.userTeamId?'me':''}"><b>${i+1}</b><img class="club-crest" src="${crest(t)}" alt="" onerror="this.style.display='none';this.nextElementSibling?.classList.add('crest-fallback-text')"><div><strong>${esc(t.name)}</strong><span>${esc(t.city)}</span></div><span class="league-record">${s.played} Sp. · ${s.gf}:${s.ga}</span><strong>${s.points} P</strong></div>`}).join('')}</div>`);
+    }).join('');
+    return `${pageHead('Liga','Alle drei Spielklassen · ${26} Teams',`<span class="rank-pill">${rank}. Platz in ${esc(current.name)}</span>`)}${leagueCards}${card('Auf- & Abstieg',`<div class="promotion"><span><b>▲</b> Platz 1–2</span><span class="muted">Aufstieg</span><span><b class="red-txt">▼</b> letzter 2</span><span class="muted">Abstieg</span></div>`)}`;
   }
 
   function renderGames(){
@@ -634,7 +669,17 @@
 
   function createLiveSim(H,A){
     const homeBases=[[8,50],[28,30],[28,70],[48,35],[53,50]], awayBases=[[92,50],[72,70],[72,30],[52,65],[47,50]];
-    const makeSide=(team,side,bases)=>team.roster.slice().sort((a,b)=>Number(!!b.isGK)-Number(!!a.isGK)).slice(0,5).map((p,i)=>({id:p.id,name:p.name,pos:p.pos,rating:p.rating,side,index:i,x:bases[i][0],y:bases[i][1],bx:bases[i][0],by:bases[i][1]}));
+    const makeSide=(team,side,bases)=>{
+      const raw=team.roster.slice(0,5).map((p)=>({p,orig:team.roster.indexOf(p)}));
+      const decorated=raw.map(({p,orig})=>{const role=getLineupRole(team,p,orig);return {p,orig,role};});
+      // The player dragged into the goal becomes the actual match keeper.
+      decorated.sort((a,b)=>Number(b.role.inGoal)-Number(a.role.inGoal));
+      return decorated.slice(0,5).map(({p,orig,role},i)=>({
+        id:p.id,name:p.name,pos:p.pos,rating:p.rating,side,index:i,
+        x:bases[i][0],y:bases[i][1],bx:bases[i][0],by:bases[i][1],
+        isGK:role.inGoal,gkEligible:role.suitable,gkRating:role.displayRating,moveFactor:role.moveFactor
+      }));
+    };
     return {players:{home:makeSide(H,'home',homeBases),away:makeSide(A,'away',awayBases)},ball:{x:53,y:50,side:'home',index:4,mode:'hold',sx:53,sy:50,tx:53,ty:50,start:0,duration:0},nextDecisionAt:performance.now()+900,lastCommentAt:0,action:null,phase:'kickoff'};
   }
 
@@ -869,7 +914,9 @@
           else if(sim.action.type==='pass') {targetX=sim.action.tx;targetY=sim.action.ty;}
         }
 
-        const smooth=(p===holderObj?0.32:(support===p||forwardRunner===p?0.12:0.075));
+        let smooth=(p===holderObj?0.32:(support===p||forwardRunner===p?0.12:0.075));
+        // Goalkeepers stay home; an outfield player forced into goal is dramatically slower.
+        if(p.isGK) smooth*=p.gkEligible?0.58:0.18;
         p.x+= (targetX-p.x)*smooth;
         p.y+= (targetY-p.y)*smooth;
         p.x=clamp(p.x,4,96);p.y=clamp(p.y,6,94);
@@ -904,11 +951,11 @@
   function resolveLiveAction(now,a){
     const lm=state.liveMatch,sim=lm.sim,b=sim.ball;
     if(!sim.action)return;
-    const keeperH=sim.players.home?.[0], keeperA=sim.players.away?.[0];
+    const keeperH=sim.players.home?.find(p=>p.isGK)||sim.players.home?.[0], keeperA=sim.players.away?.find(p=>p.isGK)||sim.players.away?.[0];
     if(a.type==='shot'){
       const keeper=otherSide(a.side)==='home'?keeperH:keeperA;
       const shooter=findSimPlayer(lm,a.side,a.index);
-      const power=shooter?.rating||68;
+      const power=(shooter?.gkRating && shooter?.isGK ? shooter.gkRating : shooter?.rating)||68;
       const distToGoal=Math.abs(currentGoalX(a.side)-b.x);
       const onTarget=0.48+clamp((power-60)/220,-.12,.14)-distToGoal/260;
       const roll=Math.random();
@@ -1188,9 +1235,22 @@
   function endPlayerDrag(e){
     if(!dragState||dragState.pointerId!==e.pointerId)return;
     const moved=dragState.moved;
+    const team=currentTeam();
+    const player=team?.roster?.find(p=>p.id===dragState.playerId);
     dragState.el.classList.remove('dragging');
     dragState=null;
-    if(moved){state._dragMoved=true;saveState();}
+    if(moved){
+      if(team&&player){
+        const c=state.lineupPositions[team.id]?.[player.id];
+        if(c){
+          const role=getLineupRole(team,player,team.roster.indexOf(player));
+          player._lineupRole=role.inGoal?'GK':'OUT';
+          player._gkSuitable=role.suitable;
+          player._gkRating=role.displayRating;
+        }
+      }
+      state._dragMoved=true;saveState();renderPage();
+    }
   }
 
   function go(page){state.active=page;window.scrollTo({top:0,behavior:'smooth'});renderPage();}
