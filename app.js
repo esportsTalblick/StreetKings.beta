@@ -69,7 +69,7 @@
   }
 
   function crest(team){
-    if(team && team.id===state.userTeamId && team.name==='Talblick FC') return 'assets/crest-talblick.svg';
+    if(team && team.id===state.userTeamId) return 'assets/logo-shield.png';
     const c = team?.teamColor || '#39f2a5';
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" shape-rendering="crispEdges"><path d="M32 4 56 14v20c0 15-9 24-24 27C17 58 8 49 8 34V14Z" fill="#071016"/><path d="M32 8 52 16v17c0 12-7 20-20 24-13-4-20-12-20-24V16Z" fill="${c}"/><path d="M19 27h26v7H19zM27 20h10v22H27z" fill="#071016"/></svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
@@ -205,8 +205,7 @@
     return `<div class="mobile-app">
       <header class="mobile-topbar">
         <button class="brand-lockup" data-page="home" aria-label="Home">
-          <img src="assets/logo.svg" alt="Street Kings">
-          <span><strong>STREET KINGS</strong><em>MANAGER</em></span>
+          <img class="brand-main-logo" src="assets/logo-main.png" alt="Street Kings Manager">
         </button>
         <div class="top-head-right">
           <div class="club-mini"><img src="${crest(t)}" alt=""><span><b>${esc(t.name)}</b><small>${esc(t.city)}</small></span></div>
@@ -227,8 +226,9 @@
   function renderHome(){
     const t=currentTeam(),l=currentLeague(),ng=nextUserGame(); const opp=ng?state.teams[ng.home===t.id?ng.away:ng.home]:null;
     const stand=standings(l), liveListings=state.market.slice().sort((a,b)=>b.currentPrice-a.currentPrice).slice(0,4);
-    const quick=[['team','♟','Verein'],['team','👥','Team'],['games','⚽','Spielen'],['league','🏆','Liga'],['market','↔','Transfers'],['market','🛒','Marktplatz'],['more','🏙','Stadt'],['settings','▤','News']];
+    const quick=[['team','♟','Verein'],['team','👥','Team'],['games','⚽','Spielen'],['league','🏆','Liga'],['market','↔','Transfers'],['market','🛒','Marktplatz'],['city','🏙','Stadt'],['more','▤','Nachrichten']];
     return `<section class="home-screen">
+      <div class="reference-logo"><img src="assets/logo-main.png" alt="Street Kings Manager"></div>
       <div class="home-meta"><div><span>SAISON ${state.season}</span><b>· WOCHE ${state.week}</b></div><div><strong>${money(t.budget)}</strong><span> · 😎 ${Math.round(teamStrength(t))}</span></div></div>
       <section class="home-hero">
         <div class="hero-overlay"></div>
@@ -358,13 +358,38 @@
     `;
   }
 
+  function renderCity(){
+    const t=currentTeam();
+    return `${pageHead('Stadt','Katzenelnbogen · Stadt / Story')}
+      <section class="city-screen">
+        <div class="city-art">
+          <img src="assets/city/katz_city.svg" alt="Katzenelnbogen">
+          <button class="city-hotspot hotspot-stadium" data-page="stadium"><b>STADION</b></button>
+          <button class="city-hotspot hotspot-sponsors" data-page="sponsors"><b>SPONSOREN</b></button>
+          <button class="city-hotspot hotspot-training" data-page="team"><b>TRAINING</b></button>
+          <button class="city-hotspot hotspot-youth" data-page="draft"><b>JUGEND</b></button>
+          <button class="city-hotspot hotspot-fans" data-page="finances"><b>FANS</b></button>
+        </div>
+        <section class="story-card">
+          <div class="story-kicker">KATZENELNBOGEN</div>
+          <h2>Eine kleine Stadt. Ein großer Traum.</h2>
+          <p>Street Kings lebt von kleinen Bolzplätzen, großen Rivalitäten und Spielern aus der Region. Deine Entscheidungen verändern Verein, Arena und Markt.</p>
+          <div class="story-stats">
+            <span><b>${money(t.budget)}</b><small>BUDGET</small></span>
+            <span><b>${Math.round(teamStrength(t))}</b><small>TEAMSTÄRKE</small></span>
+            <span><b>${t.stadium.level}</b><small>ARENA LVL</small></span>
+          </div>
+        </section>
+      </section>`;
+  }
+
   function renderMore(){
-    const items=[['tactics','◈','Taktik'],['league','🏆','Liga'],['sponsors','◆','Sponsoren'],['stadium','▧','Arena'],['finances','€','Finanzen'],['stats','▥','Statistiken'],['draft','✦','Draft'],['coaches','◎','Coaches'],['settings','⚙','Einstellungen']];
+    const items=[['city','⌂','Stadt'],['tactics','◈','Taktik'],['league','🏆','Liga'],['sponsors','◆','Sponsoren'],['stadium','▧','Arena'],['finances','€','Finanzen'],['stats','▥','Statistiken'],['draft','✦','Draft'],['coaches','◎','Coaches'],['settings','⚙','Einstellungen']];
     return `${pageHead('Mehr','Alle Manager-Systeme')}${card('Menü',`<div class="menu-grid">${items.map(([k,i,l])=>`<button data-page="${k}"><span>${i}</span><b>${l}</b></button>`).join('')}</div>`)}${card('Region',`<div class="region-card"><strong>Katzenelnbogen</strong><span>Aar-Einrich · Rhein-Lahn · Untertaunus</span><p>Scouting, Sponsoren und Gegner kommen aus der Region und wachsen mit deinem Verein.</p></div>`)}`;
   }
 
   function renderPage(){
-    const map={home:renderHome,team:renderTeam,tactics:renderTactics,league:renderLeague,games:renderGames,market:renderMarket,sponsors:renderSponsors,stadium:renderStadium,finances:renderFinances,stats:renderStats,draft:renderDraft,coaches:renderCoaches,settings:renderSettings,more:renderMore};
+    const map={home:renderHome,team:renderTeam,tactics:renderTactics,league:renderLeague,games:renderGames,market:renderMarket,sponsors:renderSponsors,stadium:renderStadium,finances:renderFinances,stats:renderStats,draft:renderDraft,coaches:renderCoaches,settings:renderSettings,city:renderCity,more:renderMore};
     $('#view').innerHTML=(map[state.active]||renderHome)();
   }
 
@@ -383,7 +408,7 @@
 
   function showWelcome(){
     const t=currentTeam();
-    openModal('WILLKOMMEN BEI STREET KINGS',`<div class="welcome-art"><div class="crown">♛</div><strong>MANAGE · BUILD · PLAY</strong><span>Katzenelnbogen</span></div><p class="modal-copy">Übernimm deinen eigenen 5er-Street-Soccer-Club. 4 Feldspieler + 1 Torwart. Spiele 2-Minuten-Live-Simulationen, handle Transfers, Sponsoren, Arena, Draft und Finanzen.</p><label class="input-label">Managername<input class="text-input" id="welcomeManager" value="${esc(state.manager)}"></label><label class="input-label">Vereinsname<input class="text-input" id="welcomeTeam" value="${esc(t.name)}"></label><label class="check-row"><input id="welcomeRemember" type="checkbox"> Beim nächsten Start nicht mehr anzeigen</label><button class="gold-btn wide" data-welcome>LOS GEHT'S</button>`,{lock:true,kicker:'STREET KINGS · MOBILE'});
+    openModal('WILLKOMMEN BEI STREET KINGS',`<div class="welcome-art"><img src="assets/logo-main.png" alt="Street Kings Manager"><div class="crown">♛</div><strong>MANAGE · BUILD · PLAY</strong><span>Katzenelnbogen</span></div><p class="modal-copy">Übernimm deinen eigenen 5er-Street-Soccer-Club. 4 Feldspieler + 1 Torwart. Spiele 2-Minuten-Live-Simulationen, handle Transfers, Sponsoren, Arena, Draft und Finanzen.</p><label class="input-label">Managername<input class="text-input" id="welcomeManager" value="${esc(state.manager)}"></label><label class="input-label">Vereinsname<input class="text-input" id="welcomeTeam" value="${esc(t.name)}"></label><label class="check-row"><input id="welcomeRemember" type="checkbox"> Beim nächsten Start nicht mehr anzeigen</label><button class="gold-btn wide" data-welcome>LOS GEHT'S</button>`,{lock:true,kicker:'STREET KINGS · MOBILE'});
   }
 
   function openPlayer(id){
