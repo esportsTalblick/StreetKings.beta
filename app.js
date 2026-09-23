@@ -201,11 +201,18 @@
 
   function renderShell(){
     const t=currentTeam(), l=currentLeague();
-    const bottom=[['home','⌂','Home'],['team','♟','Verein'],['games','⚽','Spiele'],['market','↔','Markt'],['more','☷','Mehr']];
+    const bottom=[['home','⌂','Home'],['team','♟','Verein'],['games','⚽','Spielen'],['market','🛒','Markt'],['more','☰','Menü']];
     return `<div class="mobile-app">
       <header class="mobile-topbar">
-        <div class="club-head" data-page="home"><img src="${crest(t)}" alt=""><div><strong>${esc(t.name)}</strong><span>${esc(t.city)} · ${esc(l.name)}</span></div></div>
-        <div class="top-head-right"><div class="season-chip">S${state.season} · W${state.week}</div><div class="cash-chip">${money(t.budget)}</div><button class="round-icon" data-notify>•</button></div>
+        <button class="brand-lockup" data-page="home" aria-label="Home">
+          <img src="assets/logo.svg" alt="Street Kings">
+          <span><strong>STREET KINGS</strong><em>MANAGER</em></span>
+        </button>
+        <div class="top-head-right">
+          <div class="club-mini"><img src="${crest(t)}" alt=""><span><b>${esc(t.name)}</b><small>${esc(t.city)}</small></span></div>
+          <div class="money-mini"><small>S${state.season} · W${state.week}</small><b>${money(t.budget)}</b></div>
+          <button class="round-icon" data-notify aria-label="Benachrichtigungen">●</button>
+        </div>
       </header>
       <main id="view" class="view"></main>
       <nav class="bottom-nav">${bottom.map(([k,ico,label])=>`<button data-bottom="${k}" class="${state.active===k?'active':''}"><span>${ico}</span><small>${label}</small></button>`).join('')}</nav>
@@ -219,23 +226,24 @@
 
   function renderHome(){
     const t=currentTeam(),l=currentLeague(),ng=nextUserGame(); const opp=ng?state.teams[ng.home===t.id?ng.away:ng.home]:null;
-    const stand=standings(l), liveListings=state.market.slice().sort((a,b)=>b.currentPrice-a.currentPrice).slice(0,3);
-    return `${pageHead('Dein Club. Deine Straße.','Katzenelnbogen · 5er Street Soccer',`<button class="gold-btn" data-simulate="1">${ng?'SPIEL STARTEN':'SAISON ABSCHLUSS'}</button>`)}
-      <section class="hero-pixel">
-        <div class="hero-copy"><div class="hero-brand">STREET KINGS</div><div class="hero-sub">MANAGE · BUILD · PLAY</div><div class="hero-city">KATZENELNBOGEN</div><p>Kleine Stadt. Große Träume. Baue deinen Bolzplatz, entwickle 5er-Teams und schreibe deine eigene Vereinsgeschichte.</p></div>
-        <div class="hero-light"></div><div class="hero-player"></div>
+    const stand=standings(l), liveListings=state.market.slice().sort((a,b)=>b.currentPrice-a.currentPrice).slice(0,4);
+    const quick=[['team','♟','Verein'],['team','👥','Team'],['games','⚽','Spielen'],['league','🏆','Liga'],['market','↔','Transfers'],['market','🛒','Marktplatz'],['more','🏙','Stadt'],['settings','▤','News']];
+    return `<section class="home-screen">
+      <div class="home-meta"><div><span>SAISON ${state.season}</span><b>· WOCHE ${state.week}</b></div><div><strong>${money(t.budget)}</strong><span> · 😎 ${Math.round(teamStrength(t))}</span></div></div>
+      <section class="home-hero">
+        <div class="hero-overlay"></div>
+        <div class="hero-words"><strong>STREET KINGS</strong><em>MANAGER</em><span>KATZENELNBOGEN · AAR-EINRICH</span></div>
+        <div class="hero-tag">SMALL TOWN<br>BIG DREAMS</div>
       </section>
-      <div class="ticker"><span class="live-dot"></span><strong>MARKTPLATZ LIVE</strong><div>${liveListings.map(p=>`<span>${esc(p.name.split(' ')[0])} ${p.rating} · ${money(p.currentPrice)}</span>`).join('')}</div></div>
-      ${renderNextMatchCard(ng,opp)}
+      <div class="next-match-banner">
+        <div><small>NÄCHSTES SPIEL</small><b>${ng&&opp?`VS ${esc(opp.name)}`:'SAISONABSCHLUSS'}</b><span>${ng?'Kreisliga · 18:00 · Bolzplatz Katzenelnbogen':'Neue Saison vorbereiten'}</span></div>
+        <button class="gold-btn" data-simulate="1">${ng?'LIVE':'START'}</button>
+      </div>
+      <div class="quick-grid">${quick.map(([p,i,lbl])=>`<button data-page="${p}"><span>${i}</span><b>${lbl}</b></button>`).join('')}</div>
       ${renderLineupCard()}
-      ${card('Tabelle · '+esc(l.name),`<div class="table-list">${stand.slice(0,5).map((s,i)=>{const tt=state.teams[s.teamId];return `<div class="table-row ${tt.id===t.id?'me':''}"><b>${i+1}</b><img src="${crest(tt)}"><span>${esc(tt.name)}</span><small>${s.played} Sp · ${s.points} P</small></div>`}).join('')}</div><button class="ghost-btn wide" data-page="league">Komplette Tabelle</button>`)}
-      ${card('News aus der Region',`<div class="news-stack">${state.news.slice(0,4).map(n=>`<article><div class="news-thumb ${n.kind}">${n.kind==='market'?'↔':n.kind==='stadium'?'▤':'✦'}</div><div><strong>${esc(n.title)}</strong><p>${esc(n.body)}</p></div></article>`).join('')}</div><button class="ghost-btn wide" data-page="settings">Mehr Meldungen</button>`)}
-      <div class="mini-grid">
-        ${card('Budget',`<div class="mega">${money(t.budget)}</div><div class="muted">Sponsor · ${t.sponsor?esc(t.sponsor.name):'kein Vertrag'}</div>`, 'mini')}
-        ${card('Arena',`<div class="mega">${t.stadium.capacity}</div><div class="muted">Plätze · Level ${t.stadium.level}</div>`, 'mini')}
-        ${card('Jugend',`<div class="mega">${t.youth}</div><div class="muted">Akademie-Stufe</div>`, 'mini')}
-        ${card('Trophäen',`<div class="mega">${t.titles||0}</div><div class="muted">Vereinsgeschichte</div>`, 'mini')}
-      </div>`;
+      <div class="design-split"><div>${card('TABELLE · '+esc(l.name),`<div class="table-list compact">${stand.slice(0,5).map((s,i)=>{const tt=state.teams[s.teamId];return `<div class="table-row ${tt.id===t.id?'me':''}"><b>${i+1}</b><img src="${crest(tt)}"><span>${esc(tt.name)}</span><small>${s.points} P</small></div>`}).join('')}</div><button class="ghost-btn wide" data-page="league">MEHR</button>`)}</div><div>${card('LIVE-MARKT',`<div class="market-mini-list">${liveListings.map(p=>`<button class="market-mini" data-player="${p.id}"><img src="${playerAvatar(p,p.teamColor,true)}"><span><b>${esc(p.name.split(' ')[0])}</b><small>${marketLabel(p.pos)} · ${p.rating}</small></span><strong>${money(p.currentPrice)}</strong></button>`).join('')}</div><button class="ghost-btn wide" data-page="market">MARKTPLATZ ÖFFNEN</button>`)}</div></div>
+      ${card('NEWS AUS DER REGION',`<div class="news-stack">${state.news.slice(0,3).map(n=>`<article><div class="news-thumb ${n.kind}">${n.kind==='market'?'↔':n.kind==='stadium'?'▤':'✦'}</div><div><strong>${esc(n.title)}</strong><p>${esc(n.body)}</p></div></article>`).join('')}</div>`)}
+    </section>`;
   }
 
   function renderNextMatchCard(ng,opp){
@@ -473,7 +481,7 @@
 
   function renderLiveMatch(){
     const lm=state.liveMatch,H=state.teams[lm.home],A=state.teams[lm.away];
-    openModal('LIVE SIMULATION',`<div class="live-score"><div><img src="${crest(H)}"><strong>${esc(H.name)}</strong></div><div><span class="live-time" id="liveTime">00:00</span><b id="liveScore">${lm.hg} : ${lm.ag}</b><small>${lm.weather.icon} ${esc(lm.weather.name)}</small></div><div><img src="${crest(A)}"><strong>${esc(A.name)}</strong></div></div><div class="live-field"><div class="field-mark center"></div><div class="field-mark line"></div><div class="live-ball" id="liveBall"></div><div class="live-token home-t1"></div><div class="live-token home-t2"></div><div class="live-token home-t3"></div><div class="live-token away-t1"></div><div class="live-token away-t2"></div><div class="live-token away-t3"></div></div><div class="live-status"><div><span>Ballbesitz</span><b id="livePoss">${Math.round(lm.possession)}% · ${100-Math.round(lm.possession)}%</b></div><div><span>Schüsse</span><b id="liveShots">${lm.shotsH} · ${lm.shotsA}</b></div></div><div class="live-feed" id="liveFeed">${lm.events.map(e=>`<article class="event ${e.kind}"><small>${Math.floor(e.t/60)}:${String(e.t%60).padStart(2,'0')}</small><span>${esc(e.text)}</span></article>`).join('')}</div><div class="live-progress"><div><span>Simulation läuft…</span><b id="liveRemaining">02:00</b></div><i><em id="liveBar"></em></i></div>`,{lock:true,kicker:'VORSTAND · LIVEBEOBACHTUNG'});
+    openModal('LIVE SIMULATION',`<div class="live-score"><div><img src="${crest(H)}"><strong>${esc(H.name)}</strong></div><div><span class="live-time" id="liveTime">00:00</span><b id="liveScore">${lm.hg} : ${lm.ag}</b><small>${lm.weather.icon} ${esc(lm.weather.name)}</small></div><div><img src="${crest(A)}"><strong>${esc(A.name)}</strong></div></div><div class="live-field"><div class="field-mark center"></div><div class="field-mark line"></div><div class="live-ball" id="liveBall"></div><div class="live-token home-t1"></div><div class="live-token home-t2"></div><div class="live-token home-t3"></div><div class="live-token away-t1"></div><div class="live-token away-t2"></div><div class="live-token away-t3"></div></div><div class="live-status"><div><span>Ballbesitz</span><b id="livePoss">${Math.round(lm.possession)}% · ${100-Math.round(lm.possession)}%</b></div><div><span>Schüsse</span><b id="liveShots">${lm.shotsH} · ${lm.shotsA}</b></div></div><div class="live-feed" id="liveFeed">${lm.events.map(e=>`<article class="event ${e.kind}"><small>${Math.floor(e.t/60)}:${String(e.t%60).padStart(2,'0')}</small><span>${esc(e.text)}</span></article>`).join('')}</div><div class="live-progress"><div><span>Simulation läuft…</span><b id="liveRemaining">02:00</b></div><i><em id="liveBar"></em></i></div>`,{lock:true,full:true,kicker:'VORSTAND · LIVEBEOBACHTUNG'});
     updateLiveDOM();
   }
 
