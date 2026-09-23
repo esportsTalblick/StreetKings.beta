@@ -130,9 +130,9 @@
     return {id:uid('p'),name,pos,age,rating,skill,salary:Math.round(1200+rating*rating*7+age*120),value:Math.round(45000+rating*rating*95+(24-age)*5200),form:Math.round(72+Math.random()*28),teamColor,skin:pick(SKIN),hair:pick(HAIR),games:0,goals:0,assists:0,yellow:0,marketHeat:Math.random(),contractYears:2,contractEndSeason:state.season+2,nationality:pick(['DE','HR','AT','NL','BR','FR']),bio:'Regional 5er-Spieler mit Entwicklungspotenzial.',priceChange:0,priceChangePct:0,isGK:pos==='GK'};
   }
 
-  function makeRoster(teamColor, quality){
+  function makeRoster(teamColor, quality, seedOffset=0){
     const pos=['GK','CB','LB','RB','ST','MF','LW','RW','ST','MF'];
-    return pos.map((p,i)=>makePlayer(i+Math.round(Math.random()*3),teamColor,p,quality));
+    return pos.map((p,i)=>makePlayer(seedOffset+i*7+Math.floor(Math.random()*3),teamColor,p,quality));
   }
 
   // FC Talblick roster: the names/positions/market figures supplied by the manager.
@@ -162,15 +162,15 @@
 
   function slugify(s){return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
 
-  function teamObj(name,city,quality,tier,color){
+  function teamObj(name,city,quality,tier,color,seedOffset=0){
     const c=color || pick(TEAM_COLORS);
-    return {id:uid('t'),name,city,quality,baseQuality:quality,teamColor:c,budget:tier===1?310000:tier===2?205000:125000,logo:'assets/clubs/'+slugify(name)+'.png',roster:makeRoster(c,quality),coach:null,coachBoost:0,
+    return {id:uid('t'),name,city,quality,baseQuality:quality,teamColor:c,budget:tier===1?310000:tier===2?205000:125000,logo:'assets/clubs/'+slugify(name)+'.png',roster:makeRoster(c,quality,seedOffset),coach:null,coachBoost:0,
       form:['W','D','W','L','D'],stadium:{name:`${name} Street Arena`,capacity:180,level:1,upgrades:{}},sponsor:null,
       stats:{played:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,homeRevenue:0,shots:0,xg:0},youth:2,titles:0,finance:{ticketPrice:9,vipPrice:28,merchPrice:5,cateringPrice:4,debt:0,interest:0.08},teamValue:0,seasonOffers:[]};
   }
 
   function buildTeams(){
-    const teams=TEAM_NAMES.map((x,i)=>teamObj(x[0],x[1],i<9?74:i<18?68:62,i<9?1:i<18?2:3,i===0?'#39f2a5':null)); teams.forEach(tm=>tm.roster.forEach(p=>{p.teamId=tm.id;p.teamColor=tm.teamColor;}));
+    const teams=TEAM_NAMES.map((x,i)=>teamObj(x[0],x[1],i<9?74:i<18?68:62,i<9?1:i<18?2:3,i===0?'#39f2a5':null,i*100)); teams.forEach(tm=>tm.roster.forEach(p=>{p.teamId=tm.id;p.teamColor=tm.teamColor;}));
     const talblick=teams.find(t=>t.name==='FC Talblick');
     applyTalblickRoster(talblick);
     return teams;
@@ -257,10 +257,10 @@
       {title:'Marktplatz geöffnet',body:'Neue Talente aus Aar-Einrich und Rhein-Lahn warten auf Angebote.',kind:'market'}
     ];
     state.friendlies=[];
-    state.firstRun=true;
-    state.teamChosen=false;
+    state.firstRun=false;
+    state.teamChosen=true;
     state.pendingTeamId=null;
-    state.introStage='welcome';
+    state.introStage='done';
     state.version=APP_VERSION;
     saveState();
   }
@@ -287,7 +287,7 @@
       state.friendlies=[];
       state.season=1;state.week=1;state.date=new Date('2026-08-15T18:00:00');state.lastMatch=null;state.liveMatch=null;
       state.version=APP_VERSION;
-      state.teamChosen=false; state.firstRun=true;
+      state.teamChosen=true; state.firstRun=false;
       const ut=currentTeam();ut.budget=Math.max(46357,oldBudget);ut.sponsor={...SPONSORS[0]};ut.stadium.capacity=220;
       ensureManagerSystems();
       saveState();
@@ -339,7 +339,7 @@
     try{
       const keys=[]; for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(/^(streetKings|skm)/i.test(k)))keys.push(k);} keys.forEach(k=>localStorage.removeItem(k)); sessionStorage.clear();
     }catch(e){console.warn('Reset failed',e);}
-    window.location.replace(location.pathname+'?fresh='+Date.now());
+    location.href=location.pathname+'?newgame='+Date.now();
   }
   function resetState(){hardResetGame();}
 
@@ -1273,6 +1273,31 @@
     for(const l of Object.values(state.leagues)){const g=l.schedule.find(x=>x.id===id);if(g)return g;} return null;
   }
 
+  function applyResultForLeague(game,hg,ag,weather,leagueId){
+    const l=state.leagues[leagueId]; if(!l||game.played)return;
+    game.played=true; game.result={hg,ag,weather:weather?.name||'Normal'};
+    const rowH=l.standings[game.home], rowA=l.standings[game.away]; if(!rowH||!rowA)return;
+    rowH.played++; rowA.played++; rowH.gf+=hg; rowH.ga+=ag; rowA.gf+=ag; rowA.ga+=hg; rowH.gd=rowH.gf-rowH.ga; rowA.gd=rowA.gf-rowA.ga;
+    if(hg>ag){rowH.wins++;rowH.points+=3;rowA.losses++;} else if(ag>hg){rowA.wins++;rowA.points+=3;rowH.losses++;} else {rowH.draws++;rowA.draws++;rowH.points++;rowA.points++;}
+    const H=state.teams[game.home],A=state.teams[game.away]; if(H&&A){H.stats.played++;A.stats.played++;H.stats.gf+=hg;H.stats.ga+=ag;A.stats.gf+=ag;A.stats.ga+=hg;H.form=(H.form||[]).concat(hg>ag?'W':hg===ag?'D':'L').slice(-5);A.form=(A.form||[]).concat(ag>hg?'W':ag===hg?'D':'L').slice(-5);H.roster.slice(0,5).forEach(p=>p.games++);A.roster.slice(0,5).forEach(p=>p.games++);}
+  }
+  function simulateOtherGames(round,excludeId){
+    for(const l of Object.values(state.leagues||{})) for(const g of l.schedule||[]){
+      if(g.played||g.id===excludeId||g.round!==round)continue;
+      const H=state.teams[g.home],A=state.teams[g.away]; if(!H||!A)continue;
+      const hs=teamStrength(H),as=teamStrength(A),total=hs+as; let hg=Math.max(0,Math.round((Math.random()*2.6)*(hs/Math.max(1,total))*1.25)),ag=Math.max(0,Math.round((Math.random()*2.6)*(as/Math.max(1,total))*1.25));
+      if(Math.random()<.28){if(hs>as)hg++;else ag++;} applyResultForLeague(g,hg,ag,pick(WEATHER),l.id);
+    }
+  }
+  function finishLiveMatch(){
+    const lm=state.liveMatch; if(!lm||lm.finishing)return; lm.finishing=true;
+    cancelAnimationFrame(window.__liveRAF); window.__liveRAF=null;
+    const game=findGame(lm.gameId,lm.type); if(!game){state.liveMatch=null;renderPage();return;}
+    const weather=lm.weather||pick(WEATHER); applyFinalResult(game,lm.hg,lm.ag,weather,lm.type,lm.shotsH,lm.shotsA);
+    state.lastMatch={home:lm.home,away:lm.away,hg:lm.hg,ag:lm.ag,weather:weather.name,type:lm.type,date:Date.now()};
+    state.liveMatch=null; saveState();
+    openModal('ABPFIFF',`<div class="fulltime-card"><div class="fulltime-score"><strong>${esc(state.teams[lm.home]?.name||'Heim')}</strong><b>${lm.hg} : ${lm.ag}</b><strong>${esc(state.teams[lm.away]?.name||'Gast')}</strong></div><p>Die Partie ist beendet. Tabelle, Form und Statistiken wurden aktualisiert.</p><button class="gold-btn wide" data-close>WEITER</button></div>`,{kicker:'ENDSTAND'});
+  }
   function applyFinalResult(game,hg,ag,weather,type,shotsH=0,shotsA=0){
     const H=state.teams[game.home],A=state.teams[game.away];if(!H||!A||game.played)return;
     let league=null,leagueId=null;for(const [id,l] of Object.entries(state.leagues)){if(l.schedule.some(g=>g.id===game.id)){league=l;leagueId=id;break;}}
@@ -1520,10 +1545,11 @@
   }
 
   initState();
+  if(new URLSearchParams(location.search).has('newgame')){ state.teamChosen=false; state.firstRun=true; state.introStage='club'; state.pendingTeamId=null; }
   state.version=APP_VERSION;
   ensureManagerSystems();
   saveState();
   render();
   bindGlobal();
-  showStartupSplash();
+  if(new URLSearchParams(location.search).has('newgame')) setTimeout(showClubSelection,120);
 })();
