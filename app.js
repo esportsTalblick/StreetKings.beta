@@ -37,20 +37,20 @@
     {name:'Windig',mult:0.96,icon:'≋',pitch:'Windig'}
   ];
   const SPONSORS = [
-    {id:'rewe',name:'REWE Katzenelnbogen',tier:1,pay:11000,bonus:0.02,accent:'#ef233c'},
-    {id:'ksk',name:'Kreissparkasse Rhein-Lahn',tier:2,pay:16000,bonus:0.03,accent:'#e51c2e'},
-    {id:'schaefer',name:'Schäfer Garten & Landschaft',tier:2,pay:14500,bonus:0.025,accent:'#57b957'},
-    {id:'belzer',name:'Autohaus Belzer',tier:3,pay:21500,bonus:0.04,accent:'#9ea9b2'},
-    {id:'aarwerk',name:'AARWERK Energie',tier:3,pay:24000,bonus:0.045,accent:'#ffd34d'},
-    {id:'talblick',name:'Talblick Sport',tier:3,pay:27000,bonus:0.05,accent:'#45f2b0'}
+    {id:'rheinholz',name:'RHEINHOLZ',tier:1,pay:12000,bonus:0.02,accent:'#f4d03f',asset:'assets/sponsors/sponsor-1.png'},
+    {id:'nova',name:'NOVA SERVICE',tier:2,pay:16500,bonus:0.03,accent:'#22c55e',asset:'assets/sponsors/sponsor-2.png'},
+    {id:'talblick',name:'TALBLICK SPORT',tier:2,pay:18500,bonus:0.035,accent:'#ef4444',asset:'assets/sponsors/sponsor-3.png'},
+    {id:'ksk',name:'KREISSPARKASSE RHEIN-LAHN',tier:2,pay:21000,bonus:0.04,accent:'#d71920',asset:'assets/sponsors/sponsor-2.png'},
+    {id:'autohaus',name:'AUTOHAUS BELZER',tier:3,pay:24500,bonus:0.045,accent:'#6fb7ff',asset:'assets/sponsors/sponsor-3.png'},
+    {id:'regional',name:'AAR-EINRICH PARTNER',tier:3,pay:28000,bonus:0.05,accent:'#f59e0b',asset:'assets/sponsors/banner.png'}
   ];
   const TEAM_NAMES = [["Street Kings","Katzenelnbogen"],["Taunus Park FC","Hahnstätten"],["Limburg United","Limburg"],["Diezer SV","Diez"],["Nassau FC","Nassau"],["Bad Ems 1911","Bad Ems"],["Aar Tal FC","Aarbergen"],["VfR Einrich","Klingelbach"],["Blau-Weiss Allendorf","Allendorf"],["TuS Hünstätten","Hünstätten"],["SV Holzhausen","Holzhausen"],["FC Scheidt","Scheidt"],["Viktoria Berg","Berg"],["SG Lahn Blick","Lahnstein"],["FC Zollhaus","Zollhaus"],["SV Oberneisen","Oberneisen"],["RSV Heistern","Heistern"],["FC Dörsdorf","Dörsdorf"],["SV Rettert","Rettert"],["TuS Eisenbach","Eisenbach"],["SV Kördorf","Körsdorf"],["FC Netzen","Netzen"],["SG Flacht","Flacht"],["SV Niederneisen","Niederneisen"],["FC Kaldorf","Kaldorf"]];
 
   const state = {
-    version:'2.0.0', firstRun:true, manager:'Manager', active:'home', season:1, week:1,
+    version:'3.0.0', firstRun:true, teamChosen:false, manager:'Manager', active:'home', season:1, week:1,
     date:new Date('2026-08-15T18:00:00'), userTeamId:null, teams:{}, leagues:{}, market:[], coaches:[], news:[],
     friendlies:[], marketFilter:'all', tactic:'1-2-2', tactics:{pressing:62,risk:50,tempo:58,passing:56}, notifications:2,
-    trophies:0, lastMatch:null, liveMatch:null
+    trophies:0, fans:77, lastMatch:null, liveMatch:null
   };
 
   function playerAvatar(p, accent='#41f3a5', small=false){
@@ -78,7 +78,7 @@
 
   function teamObj(name,city,quality,tier,color){
     const c=color || pick(TEAM_COLORS);
-    return {id:uid('t'),name,city,quality,baseQuality:quality,teamColor:c,budget:tier===1?310000:tier===2?205000:125000,logo:'assets/clubs/'+slugify(name)+'.svg',roster:makeRoster(c,quality),coach:null,coachBoost:0,
+    return {id:uid('t'),name,city,quality,baseQuality:quality,teamColor:c,budget:tier===1?310000:tier===2?205000:125000,logo:'assets/clubs/'+slugify(name)+'.png',roster:makeRoster(c,quality),coach:null,coachBoost:0,
       form:['W','D','W','L','S'],stadium:{name:`${name} Street Arena`,capacity:180,level:1,upgrades:{}},sponsor:null,
       stats:{played:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,homeRevenue:0,shots:0,xg:0},youth:2,titles:0};
   }
@@ -104,7 +104,7 @@
     return [...games,...returnLeg];
   }
 
-  function generateMarket(n=18){
+  function generateMarket(n=48){
     const out=[]; for(let i=0;i<n;i++){
       const p=makePlayer(100+i,pick(TEAM_COLORS),pick(['GK','CB','LB','RB','MF','LW','RW','ST']),61+Math.random()*18);
       p.teamId=null; p.value=Math.round(p.value*(0.72+Math.random()*0.28)); p.currentPrice=p.value; p.listingEndsAt=Date.now()+90000+Math.random()*150000; p.watch=false; p.bids=0;
@@ -126,14 +126,19 @@
   function initState(){
     const raw=localStorage.getItem(APP_KEY)||localStorage.getItem(LEGACY_KEY);
     if(raw){
-      try{const d=JSON.parse(raw); Object.assign(state,d); normalizeState(); state.firstRun=!!d.firstRun; return;}catch(e){console.warn('Save konnte nicht geladen werden',e);}
+      try{
+        const d=JSON.parse(raw); const oldVersion=String(d.version||'0');
+        Object.assign(state,d); normalizeState();
+        if(oldVersion!=='3.0.0'){ state.version='3.0.0'; state.firstRun=true; state.teamChosen=false; }
+        return;
+      }catch(e){console.warn('Save konnte nicht geladen werden',e);}
     }
     const teams=buildTeams(); teams.forEach(t=>state.teams[t.id]=t); state.userTeamId=teams[0].id;
     state.leagues.L1=makeLeague(teams.slice(0,8),'Kreisliga A',1);
     state.leagues.L2=makeLeague(teams.slice(8,17),'Kreisliga B',2);
     state.leagues.L3=makeLeague(teams.slice(17,25),'Kreisliga C',3);
     const t=currentTeam(); t.sponsor={...SPONSORS[0]}; t.stadium.capacity=220;
-    state.market=generateMarket(); state.coaches=generateCoaches();
+    state.market=generateMarket(48); state.coaches=generateCoaches();
     state.news=[
       {title:'Willkommen in Katzenelnbogen',body:'Dein Street-Soccer-Club startet. Die Stadt schaut zu.',kind:'city'},
       {title:'Bolzplatz im Fokus',body:'Mit Ausbau, Licht und Tribüne wird aus dem Platz eine echte Arena.',kind:'stadium'},
@@ -157,7 +162,7 @@
       state.leagues.L2=makeLeague(teams.slice(8,17),'Kreisliga B',2);
       state.leagues.L3=makeLeague(teams.slice(17,25),'Kreisliga C',3);
       state.manager=oldManager;
-      state.market=generateMarket(); state.coaches=generateCoaches();
+      state.market=generateMarket(48); state.coaches=generateCoaches();
       state.news=[
         {title:'25 Clubs · 3 Ligen',body:'Die neue Street-Kings-Landschaft rund um Katzenelnbogen ist online.',kind:'city'},
         {title:'Live-Simulation verbessert',body:'5 gegen 5, Ballbewegung, Spieleranimation und Spielereignisse laufen jetzt sichtbar.',kind:'result'},
@@ -165,21 +170,22 @@
       ];
       state.friendlies=[];
       state.season=1;state.week=1;state.date=new Date('2026-08-15T18:00:00');state.lastMatch=null;state.liveMatch=null;
-      state.version='2.1.0';
+      state.version='3.0.0';
+      state.teamChosen=false; state.firstRun=true;
       const ut=currentTeam();ut.budget=Math.max(46357,oldBudget);ut.sponsor={...SPONSORS[0]};ut.stadium.capacity=220;
       state.firstRun=false;saveState();
       return;
     }
-    Object.values(state.teams||{}).forEach(t=>{t.logo=t.logo||('assets/clubs/'+slugify(t.name)+'.svg');});
+    Object.values(state.teams||{}).forEach(t=>{t.logo=t.logo||('assets/clubs/'+slugify(t.name)+'.png');});
     if(state.teams && !state.teams[state.userTeamId]) state.userTeamId=Object.keys(state.teams)[0];
-    state.market=Array.isArray(state.market)?state.market:generateMarket(); state.coaches=Array.isArray(state.coaches)?state.coaches:generateCoaches(); state.news=Array.isArray(state.news)?state.news:[]; state.friendlies=Array.isArray(state.friendlies)?state.friendlies:[];
+    state.market=Array.isArray(state.market)?state.market:generateMarket(48); if(state.market.length<30) state.market=generateMarket(48); state.coaches=Array.isArray(state.coaches)?state.coaches:generateCoaches(); state.teamChosen = !!state.teamChosen; state.fans = state.fans || 77; state.news=Array.isArray(state.news)?state.news:[]; state.friendlies=Array.isArray(state.friendlies)?state.friendlies:[];
     state.date=new Date(state.date||Date.now());
     Object.values(state.teams||{}).forEach(t=>{
       t.roster ||= makeRoster(t.teamColor||'#39f2a5',t.quality||65); t.stats ||= {played:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,homeRevenue:0,shots:0,xg:0}; t.form ||= ['W','D','W','L','S'];
       t.stadium ||= {name:`${t.name} Street Arena`,capacity:180,level:1,upgrades:{}}; t.stadium.upgrades ||= {}; t.youth ||= 1; t.budget ||= 120000; t.logo ||= `assets/clubs/${slugify(t.name)}.svg`;
     });
     Object.values(state.leagues||{}).forEach(l=>{l.standings ||= {};l.schedule ||= [];});
-    state.liveMatch=null; state.version='2.1.0';
+    state.liveMatch=null; state.version='3.0.0';
   }
 
   function saveState(){
@@ -235,12 +241,13 @@
   function renderHome(){
     const t=currentTeam(),l=currentLeague(),ng=nextUserGame(); const opp=ng?state.teams[ng.home===t.id?ng.away:ng.home]:null;
     const stand=standings(l), liveListings=state.market.slice().sort((a,b)=>b.currentPrice-a.currentPrice).slice(0,4);
-    const quick=[['team','assets/icons/verein.png','Verein'],['tactics','assets/icons/team.png','Team'],['games','assets/icons/spielen.png','Spielen'],['league','assets/icons/liga.png','Liga'],['market','assets/icons/transfers.png','Transfers'],['market','assets/icons/markt.png','Marktplatz'],['city','assets/icons/stadt.png','Stadt'],['news','assets/icons/news.png','News']];
+    const quick=[['team','assets/icons/verein.png','Verein'],['tactics','assets/icons/team.png','Team'],['games','assets/icons/spielen.png','Spielen'],['league','assets/icons/liga.png','Liga'],['transfers','assets/icons/transfers.png','Transfers'],['market','assets/icons/markt.png','Marktplatz'],['city','assets/icons/stadt.png','Stadt'],['news','assets/icons/news.png','News']];
     return `<section class="home-screen">
       <div class="home-meta"><div><span>SAISON ${state.season}</span><b>· WOCHE ${state.week}</b></div><div><strong>${money(t.budget)}</strong><span> · 😎 ${Math.round(teamStrength(t))}</span></div></div>
-      <section class="home-hero">
+      <section class="home-hero exact-sheet-hero">
         <div class="hero-overlay"></div>
-        <div class="hero-words"><strong>STREET KINGS</strong><em>MANAGER</em><span>KATZENELNBOGEN · AAR-EINRICH</span></div>
+        <img class="home-logo-sheet" src="assets/branding/logo-main.png" alt="STREET KINGS MANAGER">
+        <div class="hero-words"><span>KATZENELNBOGEN · AAR-EINRICH</span></div>
         <div class="hero-tag">SMALL TOWN<br>BIG DREAMS</div>
       </section>
       <div class="next-match-banner">
@@ -248,10 +255,16 @@
         <button class="gold-btn" data-simulate="1">${ng?'LIVE':'START'}</button>
       </div>
       <div class="quick-grid">${quick.map(([p,i,lbl])=>`<button data-page="${p}"><span><img src="${i}" alt=""></span><b>${lbl}</b></button>`).join('')}</div>
+      ${renderSponsorHome(t)}
       ${renderLineupCard()}
       <div class="design-split"><div>${card('TABELLE · '+esc(l.name),`<div class="table-list compact">${stand.slice(0,5).map((s,i)=>{const tt=state.teams[s.teamId];return `<div class="table-row ${tt.id===t.id?'me':''}"><b>${i+1}</b><img src="${crest(tt)}"><span>${esc(tt.name)}</span><small>${s.points} P</small></div>`}).join('')}</div><button class="ghost-btn wide" data-page="league">MEHR</button>`)}</div><div>${card('LIVE-MARKT',`<div class="market-mini-list">${liveListings.map(p=>`<button class="market-mini" data-player="${p.id}"><img src="${playerAvatar(p,p.teamColor,true)}"><span><b>${esc(p.name.split(' ')[0])}</b><small>${marketLabel(p.pos)} · ${p.rating}</small></span><strong>${money(p.currentPrice)}</strong></button>`).join('')}</div><button class="ghost-btn wide" data-page="market">MARKTPLATZ ÖFFNEN</button>`)}</div></div>
       ${card('NEWS AUS DER REGION',`<div class="news-stack">${state.news.slice(0,3).map(n=>`<article><div class="news-thumb ${n.kind}">${n.kind==='market'?'↔':n.kind==='stadium'?'▤':'✦'}</div><div><strong>${esc(n.title)}</strong><p>${esc(n.body)}</p></div></article>`).join('')}</div>`)}
     </section>`;
+  }
+
+  function renderSponsorHome(t){
+    const s=t.sponsor||SPONSORS[0];
+    return `<section class="card sponsor-home-card"><div class="sponsor-home-top"><div><div class="section-kicker">HAUPTSPONSOR</div><h2>${esc(s.name)}</h2><p>${money(s.pay)} / Woche · Bonus +${Math.round(s.bonus*100)}%</p></div><img src="${s.asset}" alt="${esc(s.name)}"></div><button class="ghost-btn wide" data-page="sponsors">SPONSOR-MENÜ ÖFFNEN</button></section>`;
   }
 
   function renderNextMatchCard(ng,opp){
@@ -278,6 +291,7 @@
     return `${pageHead('Verein','Kader, Spielerentwicklung und Startelf',`<button class="gold-btn" data-page="draft">DRAFT</button>`)}
       <div class="kpi-strip"><span><b>${Math.round(teamStrength(t))}</b><small>OVR</small></span><span><b>${t.roster.length}/12</b><small>KADER</small></span><span><b>${money(t.roster.reduce((s,p)=>s+p.value,0))}</b><small>WERT</small></span></div>
       ${card('Kader',`<div class="player-list">${t.roster.map((p,i)=>`<article class="player-row"><button class="player-main" data-player="${p.id}"><img src="${playerAvatar(p,t.teamColor,true)}"><div><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.age} J. · Form ${p.form}%</span></div></button><div class="player-rating"><b>${p.rating}</b><small>${i<5?'STARTER':'BANK'}</small></div><button class="small-btn danger" data-sell="${p.id}" ${i<5?'disabled':''}>VERK.</button></article>`).join('')}</div>`)}
+      ${card('Trikots',`<div class="kit-showcase"><div><img src="assets/kits/home.png"><small>HOME</small></div><div><img src="assets/kits/away.png"><small>AWAY</small></div><div><img src="assets/kits/third.png"><small>THIRD</small></div><div><img src="assets/kits/goalkeeper.png"><small>KEEPER</small></div></div><div class="kit-sponsor-line"><span>HAUPTSPONSOR</span><b>${esc((t.sponsor||SPONSORS[0]).name)}</b><img src="${(t.sponsor||SPONSORS[0]).asset}" alt=""></div>`)}
       ${card('Entwicklung',`<div class="stats-bars"><div><span>Tempo</span><b>${Math.round(avg(t.roster,p=>p.skill.pace))}</b><i><em style="width:${avg(t.roster,p=>p.skill.pace)}%"></em></i></div><div><span>Schuss</span><b>${Math.round(avg(t.roster,p=>p.skill.shoot))}</b><i><em style="width:${avg(t.roster,p=>p.skill.shoot)}%"></em></i></div><div><span>Pass</span><b>${Math.round(avg(t.roster,p=>p.skill.pass))}</b><i><em style="width:${avg(t.roster,p=>p.skill.pass)}%"></em></i></div><div><span>Def</span><b>${Math.round(avg(t.roster,p=>p.skill.def))}</b><i><em style="width:${avg(t.roster,p=>p.skill.def)}%"></em></i></div></div>`)}
     `;
   }
@@ -317,7 +331,17 @@
     `;
   }
 
-  function sponsorAsset(id){const m={rewe:'assets/sponsors/rewe-katzenelnbogen.png',ksk:'assets/sponsors/kreissparkasse-rhein-lahn.png',schaefer:'assets/sponsors/schaefer-garten.png',belzer:'assets/sponsors/autohaus-belzer.png',aarwerk:'assets/sponsors/stahlbau-mueller.png',talblick:'assets/sponsors/sponsor-pack-reference.png'};return m[id]||'assets/sponsors/sponsor-pack-reference.png';}
+  function sponsorAsset(id){const s=SPONSORS.find(x=>x.id===id);return s?.asset||'assets/sponsors/banner.png';}
+
+  function renderTransfers(){
+    const t=currentTeam();
+    const outgoing=t.roster.filter((p,i)=>i>=5).slice(0,6);
+    return `${pageHead('Transfers','Kaderbewegungen · Verkauf · Einkauf',`<button class="gold-btn" data-page="market">MARKTPLATZ</button>`)}
+      ${card('Dein Kader',`<div class="transfer-summary"><span><b>${t.roster.length}/12</b><small>KADER</small></span><span><b>${money(t.budget)}</b><small>BUDGET</small></span><span><b>${state.market.length}</b><small>ANGEBOTE</small></span></div>`)}
+      ${card('Verkaufen',`<div class="player-list">${outgoing.map(p=>`<article class="player-row"><button class="player-main" data-player="${p.id}"><img src="${playerAvatar(p,t.teamColor,true)}"><div><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.rating} OVR</span></div></button><b>${money(p.value)}</b><button class="small-btn danger" data-sell="${p.id}">VERK.</button></article>`).join('')||'<div class="empty">Keine Bankspieler verfügbar.</div>'}</div>`)}
+      ${card('Schnellzugriff',`<div class="action-grid"><button class="action-tile" data-page="market"><b>48+</b><small>MARKT</small></button><button class="action-tile" data-page="team"><b>12</b><small>KADER</small></button><button class="action-tile" data-page="sponsors"><b>€</b><small>SPONSOR</small></button></div>`)}
+    `;
+  }
 
   function renderSponsors(){
     const t=currentTeam(); return `${pageHead('Sponsoren','Partner aus Katzenelnbogen und Umgebung')}
@@ -383,19 +407,19 @@
   }
 
   function renderMore(){
-    const items=[['tactics','assets/icons/team.png','Taktik'],['league','assets/icons/liga.png','Liga'],['sponsors','assets/icons/sponsoren.png','Sponsoren'],['stadium','assets/icons/stadion.png','Arena'],['finances','assets/icons/finanzen.png','Finanzen'],['stats','assets/icons/stats.png','Statistiken'],['draft','assets/icons/jugend.png','Draft'],['coaches','assets/icons/verein.png','Coaches'],['city','assets/icons/stadt.png','Stadt'],['news','assets/icons/news.png','News'],['settings','assets/icons/einstellungen.png','Einstellungen']];
+    const items=[['transfers','assets/icons/transfers.png','Transfers'],['tactics','assets/icons/team.png','Taktik'],['league','assets/icons/liga.png','Liga'],['sponsors','assets/icons/sponsoren.png','Sponsoren'],['stadium','assets/icons/stadion.png','Arena'],['finances','assets/icons/finanzen.png','Finanzen'],['stats','assets/icons/stats.png','Statistiken'],['draft','assets/icons/jugend.png','Draft'],['coaches','assets/icons/verein.png','Coaches'],['city','assets/icons/stadt.png','Stadt'],['news','assets/icons/news.png','News'],['settings','assets/icons/einstellungen.png','Einstellungen']];
     return `${pageHead('Mehr','Alle Manager-Systeme')}${card('Menü',`<div class="menu-grid">${items.map(([k,i,l])=>`<button data-page="${k}"><span><img src="${i}" alt=""></span><b>${l}</b></button>`).join('')}</div>`)}${card('Region',`<div class="region-card"><strong>Katzenelnbogen</strong><span>Aar-Einrich · Rhein-Lahn · Untertaunus</span><p>Scouting, Sponsoren und Gegner kommen aus der Region und wachsen mit deinem Verein.</p></div>`)}`;
   }
 
   function renderPage(){
-    const map={home:renderHome,team:renderTeam,tactics:renderTactics,league:renderLeague,games:renderGames,market:renderMarket,sponsors:renderSponsors,stadium:renderStadium,finances:renderFinances,stats:renderStats,draft:renderDraft,coaches:renderCoaches,settings:renderSettings,more:renderMore,city:renderCity,news:renderNews};
+    const map={home:renderHome,team:renderTeam,tactics:renderTactics,league:renderLeague,games:renderGames,market:renderMarket,transfers:renderTransfers,sponsors:renderSponsors,stadium:renderStadium,finances:renderFinances,stats:renderStats,draft:renderDraft,coaches:renderCoaches,settings:renderSettings,more:renderMore,city:renderCity,news:renderNews};
     $('#view').innerHTML=(map[state.active]||renderHome)();
   }
 
   function render(){
     $('#app').innerHTML=renderShell();
     renderPage();
-    if(state.firstRun && !state.liveMatch){setTimeout(showWelcome,120);state.firstRun=false;saveState();}
+    if(state.firstRun && !state.liveMatch){setTimeout(showWelcome,120);}
   }
 
   function openModal(title,body,opts={}){
@@ -406,8 +430,9 @@
   function closeModal(){if(state.liveMatch)return;$('#modalRoot').innerHTML='';}
 
   function showWelcome(){
-    const t=currentTeam();
-    openModal('WILLKOMMEN BEI STREET KINGS',`<div class="welcome-art"><div class="crown">♛</div><strong>MANAGE · BUILD · PLAY</strong><span>Katzenelnbogen</span></div><p class="modal-copy">Übernimm deinen eigenen 5er-Street-Soccer-Club. 4 Feldspieler + 1 Torwart. Spiele 2-Minuten-Live-Simulationen, handle Transfers, Sponsoren, Arena, Draft und Finanzen.</p><label class="input-label">Managername<input class="text-input" id="welcomeManager" value="${esc(state.manager)}"></label><label class="input-label">Vereinsname<input class="text-input" id="welcomeTeam" value="${esc(t.name)}"></label><label class="check-row"><input id="welcomeRemember" type="checkbox"> Beim nächsten Start nicht mehr anzeigen</label><button class="gold-btn wide" data-welcome>LOS GEHT'S</button>`,{lock:true,kicker:'STREET KINGS · MOBILE'});
+    const leagueData=[['L1','LIGA 1 · KREISLIGA A'],['L2','LIGA 2 · KREISLIGA B'],['L3','LIGA 3 · KREISLIGA C']];
+    const tabs=leagueData.map(([id,label],i)=>`<div class="team-select-group"><h3>${label}</h3><div class="team-select-grid">${state.leagues[id].teams.map(tid=>{const t=state.teams[tid];return `<button class="team-select-card ${state.userTeamId===tid?'selected':''}" data-select-team="${tid}"><img src="${crest(t)}" alt=""><strong>${esc(t.name)}</strong><small>${esc(t.city)}</small></button>`}).join('')}</div></div>`).join('');
+    openModal('DEIN CLUB · WÄHLE DEIN TEAM',`<div class="welcome-art"><img src="assets/branding/logo-main.png" alt="STREET KINGS MANAGER"><strong>KATZENELNBOGEN · AAR-EINRICH</strong><span>25 CLUBS · 3 LIGEN</span></div><p class="modal-copy">Bevor du startest, wählst du den Verein, den du als Manager übernimmst. Du bekommst dessen Kader, Farben, Stadion und Startbudget.</p><label class="input-label">Managername<input class="text-input" id="welcomeManager" value="${esc(state.manager)}"></label><div class="team-select-scroll">${tabs}</div>`,{lock:true,kicker:'START · CLUB WÄHLEN',full:false});
   }
 
   function openPlayer(id){
@@ -455,82 +480,152 @@
 
   function liveClock(ms){const s=Math.max(0,Math.floor(ms/1000));return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 
+  function createLiveSim(H,A){
+    const homeBases=[[8,50],[28,30],[28,70],[48,35],[53,50]], awayBases=[[92,50],[72,70],[72,30],[52,65],[47,50]];
+    const makeSide=(team,side,bases)=>team.roster.slice(0,5).map((p,i)=>({id:p.id,name:p.name,pos:p.pos,rating:p.rating,side,index:i,x:bases[i][0],y:bases[i][1],bx:bases[i][0],by:bases[i][1]}));
+    return {players:{home:makeSide(H,'home',homeBases),away:makeSide(A,'away',awayBases)},ball:{x:53,y:50,side:'home',index:4,mode:'hold',sx:53,sy:50,tx:53,ty:50,start:0,duration:0},nextDecisionAt:performance.now()+900,lastCommentAt:0,action:null,phase:'kickoff'};
+  }
+
   function startLiveMatch(game,type){
     const H=state.teams[game.home], A=state.teams[game.away], weather=pick(WEATHER); if(!H||!A)return;
-    state.liveMatch={gameId:game.id,type,home:H.id,away:A.id,hg:0,ag:0,weather,started:Date.now(),elapsed:0,duration:120000,nextEvent:1200,events:[{t:0,text:`Anstoß! ${weather.icon} ${weather.name}`,kind:'start'}],possession:50,shotsH:0,shotsA:0};
+    state.liveMatch={gameId:game.id,type,home:H.id,away:A.id,hg:0,ag:0,weather,started:performance.now(),elapsed:0,duration:120000,events:[{t:0,text:`ANPFIFF · ${weather.icon} ${weather.name}`,kind:'start'}],possession:50,shotsH:0,shotsA:0,sim:createLiveSim(H,A)};
     renderLiveMatch();
-    clearInterval(window.__liveTimer); clearInterval(window.__liveEventTimer);
-    window.__liveTimer=setInterval(liveTick,1000);
-    window.__liveEventTimer=setTimeout(liveEventTick,1000);
+    cancelAnimationFrame(window.__liveRAF); clearInterval(window.__liveTimer); clearTimeout(window.__liveEventTimer);
+    window.__liveRAF=requestAnimationFrame(runLiveFrame);
   }
 
-  function liveTick(){
-    if(!state.liveMatch){clearInterval(window.__liveTimer);return;}
-    state.liveMatch.elapsed=Date.now()-state.liveMatch.started;
-    updateLiveDOM();
-    if(state.liveMatch.elapsed>=state.liveMatch.duration)finishLiveMatch();
+  function runLiveFrame(now){
+    const lm=state.liveMatch;if(!lm)return;
+    lm.elapsed=now-lm.started;
+    if(lm.elapsed>=lm.duration){lm.elapsed=lm.duration;updateLiveDOM(now);finishLiveMatch();return;}
+    updateLiveSimulation(now);
+    updateLiveDOM(now);
+    window.__liveRAF=requestAnimationFrame(runLiveFrame);
   }
 
-  function liveEventTick(){
-    const lm=state.liveMatch; if(!lm)return;
-    const remain=lm.duration-lm.elapsed; if(remain<=0)return;
-    createLiveEvent();
-    const delay=2600+Math.random()*4200;
-    clearTimeout(window.__liveEventTimer); window.__liveEventTimer=setTimeout(liveEventTick,delay);
+  function findSimPlayer(lm,side,index){return lm.sim.players[side]?.[index]||null;}
+  function currentHolder(lm){return findSimPlayer(lm,lm.sim.ball.side,lm.sim.ball.index)}
+  function otherSide(side){return side==='home'?'away':'home'}
+  function attackDir(side){return side==='home'?1:-1}
+  function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+  function nearestOpponent(lm,p){const opp=lm.sim.players[otherSide(p.side)];return opp.reduce((best,x)=>!best||distance(p,x)<distance(p,best)?x:best,null)}
+  function addLiveEvent(text,kind='neutral'){
+    const lm=state.liveMatch;if(!lm)return;
+    lm.events.unshift({t:Math.floor(lm.elapsed/1000),text,kind});lm.events=lm.events.slice(0,8);
+    updateLiveFeedOnly();
   }
-
-  function createLiveEvent(){
-    const lm=state.liveMatch,H=state.teams[lm.home],A=state.teams[lm.away],s=matchStrengthSnapshot(H,A,lm.weather), diff=s.h-s.a;
-    const attackHome=Math.max(0.25,0.5+diff/170+(state.tactics.risk-50)/350);
-    const homeGets=Math.random()<attackHome;
-    const team=homeGets?H:A, opp=homeGets?A:H;
-    const r=Math.random();
-    lm.possession=clamp(lm.possession+(homeGets?Math.random()*8:-Math.random()*8),25,75);
-    let text='',kind='neutral';
-    if(r<0.055){
-      if(homeGets)lm.hg++;else lm.ag++;
-      const scorers=team.roster.filter(p=>['ST','LW','RW','MF'].includes(p.pos)); const p=pick(scorers.length?scorers:team.roster);
-      if(p){p.goals++;p.form=clamp(p.form+3,50,100);}
-      text=`TOR! ${p?.name||'Angreifer'} trifft! ${lm.hg}:${lm.ag}`; kind='goal'; const gf=$('#liveGoalFlash'); if(gf){gf.classList.remove('show'); void gf.offsetWidth; gf.classList.add('show');}
-      addNews('LIVE-Tor',`${team.name}: ${p?.name||'Treffer'} · ${lm.hg}:${lm.ag}`,'ball');
-    }else if(r<0.16){lm[homeGets?'shotsH':'shotsA']++;text=`Chance für ${team.name}! Schuss aufs Tor.`;kind='chance';}
-    else if(r<0.24){text=`Parade! ${opp.name} hält den Druck aus.`;kind='save';}
-    else if(r<0.31){text=`Gelbe Karte für ${team.name}.`;kind='card';team.roster[Math.floor(Math.random()*team.roster.length)].yellow++;}
-    else if(r<0.43){text=`${team.name} mit starkem Pressing.`;kind='press';}
-    else if(r<0.53){text=`Taktik greift: ${team.name} verlagert das Spiel.`;kind='tactic';}
-    else{text=`${team.name}: Ballbesitzphase im letzten Drittel.`;kind='neutral';}
-    lm.events.unshift({t:Math.round(lm.elapsed/1000),text,kind}); lm.events=lm.events.slice(0,16);
-    updateLiveDOM();
+  function setupBallTravel(lm,toSide,toIndex,duration,mode){
+    const b=lm.sim.ball, holder=currentHolder(lm); b.mode=mode; b.sx=b.x;b.sy=b.y;b.tx=findSimPlayer(lm,toSide,toIndex)?.x||b.x;b.ty=findSimPlayer(lm,toSide,toIndex)?.y||b.y;b.start=performance.now();b.duration=duration;b.side=toSide;b.index=toIndex;
+    if(holder){holder.bx=holder.x;holder.by=holder.y;}
   }
-
+  function choosePassTarget(lm,holder){
+    const mates=lm.sim.players[holder.side].filter(p=>p.index!==holder.index);
+    mates.sort((a,b)=>distance(a,holder)-distance(b,holder));
+    const attacking=mates.filter(p=>attackDir(holder.side)* (p.x-holder.x)>1);
+    return pick((attacking.length?attacking:mates).slice(0,3))||holder;
+  }
+  function chooseLiveAction(now){
+    const lm=state.liveMatch,sim=lm.sim,b=sim.ball,holder=currentHolder(lm);if(!holder)return;
+    const goalX=holder.side==='home'?100:0, goalDist=Math.abs(goalX-b.x);
+    const opp=nearestOpponent(lm,holder); const underPressure=opp&&distance(holder,opp)<11;
+    const roll=Math.random();
+    if(goalDist<24 && roll<0.34){
+      const tx=goalX===100?99:1, ty=clamp(50+(Math.random()-0.5)*38,23,77);
+      sim.action={type:'shot',side:holder.side,index:holder.index,startX:b.x,startY:b.y,tx,ty,start:now,duration:520+Math.random()*380};
+      b.mode='shot';b.sx=b.x;b.sy=b.y;b.tx=tx;b.ty=ty;b.start=now;b.duration=sim.action.duration;
+      lm[holder.side==='home'?'shotsH':'shotsA']++;
+      addLiveEvent(`SCHUSS! ${holder.name.split(' ')[0]} zieht aus ${Math.round(100-goalDist)}m ab.`,'chance');
+      return;
+    }
+    if(underPressure && roll<0.25){
+      const toSide=otherSide(holder.side);const candidates=lm.sim.players[toSide];const target=candidates.reduce((best,p)=>!best||distance(p,holder)<distance(best,holder)?p:best,null);
+      if(target){sim.action={type:'tackle',side:toSide,index:target.index,startX:b.x,startY:b.y,tx:target.x,ty:target.y,start:now,duration:340+Math.random()*220};setupBallTravel(lm,toSide,target.index,sim.action.duration,'turnover');addLiveEvent(`ZWEIKAMPF! ${target.name.split(' ')[0]} erobert den Ball.`,'tackle');return;}
+    }
+    if(roll<0.72){
+      const target=choosePassTarget(lm,holder); if(target&&target!==holder){sim.action={type:'pass',side:target.side,index:target.index,startX:b.x,startY:b.y,tx:target.x,ty:target.y,start:now,duration:420+distance(holder,target)*7};setupBallTravel(lm,target.side,target.index,sim.action.duration,'pass');addLiveEvent(`${holder.name.split(' ')[0]} passt zu ${target.name.split(' ')[0]}.`,'pass');return;}
+    }
+    // dribble / carry
+    const step=(6+Math.random()*8)*attackDir(holder.side);holder.x=clamp(holder.x+step,6,94);holder.y=clamp(holder.y+(Math.random()-.5)*12,14,86);
+    sim.action={type:'dribble',side:holder.side,index:holder.index,startX:b.x,startY:b.y,tx:holder.x,ty:holder.y,start:now,duration:650+Math.random()*350};b.mode='dribble';b.sx=b.x;b.sy=b.y;b.tx=holder.x;b.ty=holder.y;b.start=now;b.duration=sim.action.duration;
+    addLiveEvent(`${holder.name.split(' ')[0]} zieht mit Tempo nach vorne.`,'dribble');
+  }
+  function updateLiveSimulation(now){
+    const lm=state.liveMatch,sim=lm.sim,H=state.teams[lm.home],A=state.teams[lm.away],b=sim.ball;
+    const sides=['home','away'];
+    sides.forEach(side=>{
+      const players=sim.players[side]; const ballRef={x:b.x,y:b.y}; players.forEach((p,i)=>{
+        const isHolder=(side===b.side&&i===b.index&&b.mode==='hold');
+        const attack=attackDir(side);
+        const formation=side==='home'?[[8,50],[28,30],[28,70],[48,35],[53,50]][i]:[[92,50],[72,70],[72,30],[52,65],[47,50]][i];
+        const lane={x:formation[0]+clamp((ballRef.x-50)*0.15,-10,10)*attack,y:formation[1]+clamp((ballRef.y-50)*0.22,-12,12)};
+        if(!isHolder && (!sim.action || sim.action.index!==i || sim.action.side!==side)){p.x+=(lane.x-p.x)*0.045;p.y+=(lane.y-p.y)*0.045;}
+        p.x=clamp(p.x,5,95);p.y=clamp(p.y,8,92);
+      });
+    });
+    if(sim.action){
+      const a=sim.action,prog=clamp((now-a.start)/a.duration,0,1),ease=prog<.5?2*prog*prog:1-Math.pow(-2*prog+2,2)/2;
+      b.x=a.startX+(a.tx-a.startX)*ease;b.y=a.startY+(a.ty-a.startY)*ease;
+      const actor=findSimPlayer(lm,a.side,a.index);if(actor&&a.type==='dribble'){actor.x=b.x;actor.y=b.y;}
+      if(prog>=1){resolveLiveAction(now,a);}
+    } else {
+      const h=currentHolder(lm); if(h){b.mode='hold';b.x=h.x+attackDir(h.side)*1.5;b.y=h.y-5;}
+      if(now>=sim.nextDecisionAt)chooseLiveAction(now);
+    }
+    // possession follows ball owner.
+    lm.possession=clamp(lm.possession+(b.side==='home'?0.05:-0.05),28,72);
+  }
+  function resolveLiveAction(now,a){
+    const lm=state.liveMatch,sim=lm.sim,b=sim.ball;
+    if(!sim.action)return;
+    if(a.type==='shot'){
+      const attacking=state.teams[a.side==='home'?lm.home:lm.away],keeper=sim.players[otherSide(a.side)][0];
+      const shooter=findSimPlayer(lm,a.side,a.index);const power=shooter?shooter.rating:65;const pressure=keeper?Math.max(0,16-distance(keeper,{x:b.x,y:b.y})):0;const goalChance=clamp(.12+(power-55)/240-pressure/170,.05,.38);
+      if(Math.random()<goalChance){
+        if(a.side==='home')lm.hg++;else lm.ag++; if(shooter){const real=attacking.roster.find(p=>p.id===shooter.id);if(real){real.goals++;real.form=clamp(real.form+3,50,100);}}
+        addLiveEvent(`TOOOOOOR! ${shooter?.name?.split(' ')[0]||'Angreifer'} trifft! ${lm.hg}:${lm.ag}`,'goal');
+        const flash=$('#liveGoalFlash');if(flash){flash.classList.remove('show');void flash.offsetWidth;flash.classList.add('show');}
+        resetAfterGoal(a.side);
+      }else{
+        const keeperName=state.teams[a.side==='home'?lm.away:lm.home].roster[0]?.name?.split(' ')[0]||'Keeper';
+        if(Math.random()<.5)addLiveEvent(`PARADE! ${keeperName} fischt den Schuss raus.`,'save');else addLiveEvent('KNAPP! Der Ball geht am Pfosten vorbei.','chance');
+        b.side=otherSide(a.side);b.index=0;b.mode='hold';sim.nextDecisionAt=now+500+Math.random()*500;
+      }
+    } else if(a.type==='pass'){
+      b.mode='hold';b.side=a.side;b.index=a.index;const receiver=findSimPlayer(lm,a.side,a.index);if(receiver){b.x=receiver.x;b.y=receiver.y;}sim.nextDecisionAt=now+220+Math.random()*500;
+    } else if(a.type==='tackle'){
+      b.mode='hold';b.side=a.side;b.index=a.index;sim.nextDecisionAt=now+450+Math.random()*450;
+    } else if(a.type==='dribble'){
+      b.mode='hold';b.side=a.side;b.index=a.index;sim.nextDecisionAt=now+200+Math.random()*450;
+    }
+    sim.action=null;
+  }
+  function resetAfterGoal(scoringSide){
+    const lm=state.liveMatch,sim=lm.sim;const concede=otherSide(scoringSide);const kickSide=concede;const kickPlayer=4;
+    const homeBases=[[8,50],[28,30],[28,70],[48,35],[53,50]], awayBases=[[92,50],[72,70],[72,30],[52,65],[47,50]];
+    sim.players.home.forEach((p,i)=>{p.x=homeBases[i][0];p.y=homeBases[i][1]});sim.players.away.forEach((p,i)=>{p.x=awayBases[i][0];p.y=awayBases[i][1]});
+    sim.ball={x:kickSide==='home'?53:47,y:50,side:kickSide,index:kickPlayer,mode:'hold',sx:kickSide==='home'?53:47,sy:50,tx:kickSide==='home'?53:47,ty:50,start:0,duration:0};sim.nextDecisionAt=performance.now()+900;
+  }
   function renderLiveMatch(){
     const lm=state.liveMatch,H=state.teams[lm.home],A=state.teams[lm.away];
-    const hp=H.roster.slice(0,5),ap=A.roster.slice(0,5);
-    const homePlayers=hp.map((p,i)=>`<div class="live-player home" data-side="home" data-index="${i}"><img src="${playerAvatar(p,H.teamColor,true)}" alt=""><b>${esc(p.name.split(' ')[0])}</b></div>`).join('');
-    const awayPlayers=ap.map((p,i)=>`<div class="live-player away" data-side="away" data-index="${i}"><img src="${playerAvatar(p,A.teamColor,true)}" alt=""><b>${esc(p.name.split(' ')[0])}</b></div>`).join('');
-    openModal('LIVE SIMULATION',`<div class="live-score"><div><img src="${crest(H)}"><strong>${esc(H.name)}</strong></div><div><span class="live-time" id="liveTime">00:00</span><b id="liveScore">${lm.hg} : ${lm.ag}</b><small>${lm.weather.icon} ${esc(lm.weather.name)}</small></div><div><img src="${crest(A)}"><strong>${esc(A.name)}</strong></div></div><div class="live-field" id="liveField"><div class="field-mark center"></div><div class="field-mark line"></div><div class="field-mark box top"></div><div class="field-mark box bottom"></div>${homePlayers}${awayPlayers}<div class="live-ball" id="liveBall"></div><div class="live-goal-flash" id="liveGoalFlash"></div></div><div class="live-status"><div><span>Ballbesitz</span><b id="livePoss">${Math.round(lm.possession)}% · ${100-Math.round(lm.possession)}%</b></div><div><span>Schüsse</span><b id="liveShots">${lm.shotsH} · ${lm.shotsA}</b></div></div><div class="live-feed" id="liveFeed">${lm.events.map(e=>`<article class="event ${e.kind}"><small>${Math.floor(e.t/60)}:${String(e.t%60).padStart(2,'0')}</small><span>${esc(e.text)}</span></article>`).join('')}</div><div class="live-progress"><div><span>Simulation läuft…</span><b id="liveRemaining">02:00</b></div><i><em id="liveBar"></em></i></div>`,{lock:true,full:true,kicker:'VORSTAND · LIVEBEOBACHTUNG'});
+    const homePlayers=lm.sim.players.home.map((p,i)=>`<div class="live-player home" data-side="home" data-index="${i}"><img src="${i===0?'assets/players/goalkeeper-yellow.png':'assets/players/outfield-white.png'}" alt=""><b>${esc(p.name.split(' ')[0])}</b></div>`).join('');
+    const awayPlayers=lm.sim.players.away.map((p,i)=>`<div class="live-player away" data-side="away" data-index="${i}"><img src="${i===0?'assets/players/goalkeeper-yellow.png':'assets/players/outfield-white.png'}" alt=""><b>${esc(p.name.split(' ')[0])}</b></div>`).join('');
+    openModal('LIVE SIMULATION',`<div class="live-score"><div><img src="${crest(H)}"><strong>${esc(H.name)}</strong></div><div><span class="live-time" id="liveTime">00:00</span><b id="liveScore">${lm.hg} : ${lm.ag}</b><small>${lm.weather.icon} ${esc(lm.weather.name)}</small></div><div><img src="${crest(A)}"><strong>${esc(A.name)}</strong></div></div><div class="live-match-badge"><span>PASS</span><span>DRIBBLING</span><span>SCHUSS</span><span>TOR</span></div><div class="live-field" id="liveField"><div class="field-mark center"></div><div class="field-mark line"></div><div class="field-mark box top"></div><div class="field-mark box bottom"></div><div class="field-mark goal left"></div><div class="field-mark goal right"></div>${homePlayers}${awayPlayers}<div class="live-ball" id="liveBall"></div><div class="live-goal-flash" id="liveGoalFlash"></div></div><div class="live-status"><div><span>Ballbesitz</span><b id="livePoss">${Math.round(lm.possession)}% · ${100-Math.round(lm.possession)}%</b></div><div><span>Schüsse</span><b id="liveShots">${lm.shotsH} · ${lm.shotsA}</b></div></div><div class="live-feed" id="liveFeed">${lm.events.map(e=>`<article class="event ${e.kind}"><small>${Math.floor(e.t/60)}:${String(e.t%60).padStart(2,'0')}</small><span>${esc(e.text)}</span></article>`).join('')}</div><div class="live-progress"><div><span>ECHTZEIT · 2:00</span><b id="liveRemaining">02:00</b></div><i><em id="liveBar"></em></i></div>`,{lock:true,full:true,kicker:'VORSTAND · LIVEBEOBACHTUNG'});
     updateLiveDOM();
   }
-
+  function updateLiveFeedOnly(){const feed=$('#liveFeed'),lm=state.liveMatch;if(feed&&lm)feed.innerHTML=lm.events.map(e=>`<article class="event ${e.kind}"><small>${Math.floor(e.t/60)}:${String(e.t%60).padStart(2,'0')}</small><span>${esc(e.text)}</span></article>`).join('');}
   function updateLiveDOM(){
-    const lm=state.liveMatch;if(!lm)return; const left=Math.max(0,lm.duration-lm.elapsed);
-    const time=$('#liveTime'),score=$('#liveScore'),rem=$('#liveRemaining'),bar=$('#liveBar'),poss=$('#livePoss'),shots=$('#liveShots'),feed=$('#liveFeed');
+    const lm=state.liveMatch;if(!lm)return; const left=Math.max(0,lm.duration-lm.elapsed),now=performance.now();
+    const time=$('#liveTime'),score=$('#liveScore'),rem=$('#liveRemaining'),bar=$('#liveBar'),poss=$('#livePoss'),shots=$('#liveShots');
     if(time)time.textContent=liveClock(lm.elapsed); if(score)score.textContent=`${lm.hg} : ${lm.ag}`; if(rem)rem.textContent=liveClock(left); if(bar)bar.style.width=`${clamp(lm.elapsed/lm.duration*100,0,100)}%`; if(poss)poss.textContent=`${Math.round(lm.possession)}% · ${100-Math.round(lm.possession)}%`; if(shots)shots.textContent=`${lm.shotsH} · ${lm.shotsA}`;
-    if(feed)feed.innerHTML=lm.events.map(e=>`<article class="event ${e.kind}"><small>${Math.floor(e.t/60)}:${String(e.t%60).padStart(2,'0')}</small><span>${esc(e.text)}</span></article>`).join('');
-    const homeBases=[[12,50],[26,26],[26,74],[46,35],[46,65]],awayBases=[[88,50],[74,74],[74,26],[54,65],[54,35]];
-    $$('.live-player').forEach(el=>{const home=el.dataset.side==='home',i=Number(el.dataset.index)||0,base=(home?homeBases:awayBases)[i]||[50,50],dx=Math.sin(lm.elapsed/800+i*1.7)*(i===0?2.5:6),dy=Math.cos(lm.elapsed/620+i*1.3)*(i===0?2.5:5);el.style.left=`${clamp(base[0]+(home?dx:-dx),4,96)}%`;el.style.top=`${clamp(base[1]+dy,8,92)}%`;});
-    const ball=$('#liveBall');if(ball){const bx=50+Math.sin(lm.elapsed/430)*38+Math.sin(lm.elapsed/190)*8,by=50+Math.cos(lm.elapsed/540)*25+Math.sin(lm.elapsed/270)*9;ball.style.left=`${clamp(bx,9,91)}%`;ball.style.top=`${clamp(by,12,88)}%`;}
+    ['home','away'].forEach(side=>lm.sim.players[side].forEach((p,i)=>{const el=$(`.live-player[data-side="${side}"][data-index="${i}"]`);if(el){el.style.left=`${p.x}%`;el.style.top=`${p.y}%`}}));
+    const b=lm.sim.ball,ball=$('#liveBall');if(ball){ball.style.left=`${b.x}%`;ball.style.top=`${b.y}%`;ball.classList.toggle('in-flight',b.mode==='pass'||b.mode==='shot');}
+    updateLiveFeedOnly();
   }
-
   function finishLiveMatch(){
-    const lm=state.liveMatch;if(!lm)return; clearInterval(window.__liveTimer);clearTimeout(window.__liveEventTimer);
-    const game = findGame(lm.gameId,lm.type), H=state.teams[lm.home], A=state.teams[lm.away];
-    if(!game){state.liveMatch=null;closeModal();render();return;}
-    applyFinalResult(game,lm.hg,lm.ag,lm.weather,lm.type,lm.shotsH,lm.shotsA);
-    state.lastMatch={...lm,finished:Date.now()};state.liveMatch=null;
-    const win=H.id===state.userTeamId?lm.hg>lm.ag:lm.ag>lm.hg; const draw=lm.hg===lm.ag;
-    addNews('Spiel beendet',`${H.name} ${lm.hg}:${lm.ag} ${A.name}`,'result');saveState();
-    $('#modalRoot').innerHTML=''; render(); toast(draw?'Remis':win?'Sieg!':'Niederlage',`${H.name} ${lm.hg}:${lm.ag} ${A.name}`);
+    const lm=state.liveMatch;if(!lm)return; cancelAnimationFrame(window.__liveRAF); clearInterval(window.__liveTimer);clearTimeout(window.__liveEventTimer);
+    const game=findGame(lm.gameId,lm.type),H=state.teams[lm.home],A=state.teams[lm.away]; if(!game){state.liveMatch=null;closeModal();render();return;}
+    applyFinalResult(game,lm.hg,lm.ag,lm.weather,lm.type,lm.shotsH,lm.shotsA); state.lastMatch={...lm,finished:Date.now(),sim:undefined};state.liveMatch=null;
+    const win=H.id===state.userTeamId?lm.hg>lm.ag:lm.ag>lm.hg,draw=lm.hg===lm.ag;addNews('Spiel beendet',`${H.name} ${lm.hg}:${lm.ag} ${A.name}`,'result');saveState();$('#modalRoot').innerHTML='';render();toast(draw?'Remis':win?'Sieg!':'Niederlage',`${H.name} ${lm.hg}:${lm.ag} ${A.name}`);
   }
 
   function findGame(id,type){
@@ -544,7 +639,7 @@
     if(hg>ag){H.stats.wins++;A.stats.losses++;if(H.id===state.userTeamId)H.stats.points+=3;} else if(hg<ag){A.stats.wins++;H.stats.losses++;if(A.id===state.userTeamId)A.stats.points+=3;} else {H.stats.draws++;A.stats.draws++;}
     H.form=[...(H.form||[]).slice(-4),hg>ag?'W':hg===ag?'D':'L']; A.form=[...(A.form||[]).slice(-4),ag>hg?'W':ag===hg?'D':'L'];
     H.roster.slice(0,5).forEach(p=>p.games++);A.roster.slice(0,5).forEach(p=>p.games++);
-    const homeRevenue=Math.round(H.stadium.capacity*(0.64+Math.random()*0.28)*9);H.budget+=homeRevenue+(H.sponsor?.pay||0);H.stats.homeRevenue+=homeRevenue;
+    const homeRevenue=Math.round(H.stadium.capacity*(0.64+Math.random()*0.28)*9);H.budget+=homeRevenue+(H.sponsor?.pay||0);A.budget+=(A.sponsor?.pay||0);H.stats.homeRevenue+=homeRevenue;
     if(H.id===state.userTeamId)H.budget+=hg>ag?5000:hg===ag?1800:0;if(A.id===state.userTeamId)A.budget+=ag>hg?3500:0;
     if(type==='league'){
       const l=currentLeague(); const sh=l.standings[H.id],sa=l.standings[A.id]; if(sh&&sa){sh.played++;sa.played++;sh.gf+=hg;sh.ga+=ag;sa.gf+=ag;sa.ga+=hg;sh.gd=sh.gf-sh.ga;sa.gd=sa.gf-sa.ga;if(hg>ag){sh.wins++;sa.losses++;sh.points+=3;}else if(hg<ag){sa.wins++;sh.losses++;sa.points+=3;}else{sh.draws++;sa.draws++;sh.points++;sa.points++;}}
@@ -608,7 +703,7 @@
   }
 
   function handleClick(e){
-    const el=e.target.closest('[data-page],[data-bottom],[data-simulate],[data-close],[data-welcome],[data-player],[data-sell],[data-buy],[data-bid],[data-watch],[data-tactic],[data-marketfilter],[data-market-refresh],[data-sponsor],[data-upgrade],[data-credit],[data-export],[data-import],[data-reset],[data-draft],[data-draft-index],[data-coach],[data-firecoach],[data-settings-save],[data-add-game],[data-create-friendly],[data-notify],[data-fixture],[data-rename-stadium]');
+    const el=e.target.closest('[data-page],[data-bottom],[data-simulate],[data-close],[data-welcome],[data-player],[data-sell],[data-buy],[data-bid],[data-watch],[data-tactic],[data-marketfilter],[data-market-refresh],[data-sponsor],[data-upgrade],[data-credit],[data-export],[data-import],[data-reset],[data-draft],[data-draft-index],[data-coach],[data-firecoach],[data-settings-save],[data-select-team],[data-add-game],[data-create-friendly],[data-notify],[data-fixture],[data-rename-stadium]');
     if(!el)return;
     if(state.liveMatch)return; // Vorstand-Livefenster blockiert andere Navigation bis zum Schlusspfiff
     if(el.dataset.page)go(el.dataset.page);
@@ -616,6 +711,7 @@
     else if(el.dataset.simulate)simulateButton();
     else if(el.dataset.close)closeModal();
     else if(el.dataset.welcome){state.manager=($('#welcomeManager')?.value||'Manager').trim()||'Manager';currentTeam().name=($('#welcomeTeam')?.value||currentTeam().name).trim()||currentTeam().name;state.firstRun=false;saveState();closeModal();render();toast('Willkommen',`Los geht's, ${state.manager}.`);}
+    else if(el.dataset.selectTeam){const t=state.teams[el.dataset.selectTeam];if(t){state.userTeamId=t.id;state.manager=($('#welcomeManager')?.value||state.manager).trim()||'Manager';t.sponsor=t.sponsor||{...SPONSORS[0]};state.teamChosen=true;state.firstRun=false;saveState();closeModal();state.active='home';render();toast('Club gewählt',`${t.name} · ${t.city}`);}}
     else if(el.dataset.player)openPlayer(el.dataset.player);
     else if(el.dataset.sell)sellPlayer(el.dataset.sell);
     else if(el.dataset.buy)buyPlayer(el.dataset.buy);
@@ -623,7 +719,7 @@
     else if(el.dataset.watch){const p=state.market.find(x=>x.id===el.dataset.watch);if(p){p.watch=!p.watch;render();}}
     else if(el.dataset.tactic){state.tactic=el.dataset.tactic;saveState();renderPage();}
     else if(el.dataset.marketfilter){state.marketFilter=el.dataset.marketfilter;renderPage();}
-    else if(el.dataset.marketRefresh){state.market=generateMarket(18);saveState();renderPage();toast('Marktplatz aktualisiert','Neue Live-Angebote sind da.');}
+    else if(el.dataset.marketRefresh){state.market=generateMarket(48);saveState();renderPage();toast('Marktplatz aktualisiert','Neue Live-Angebote sind da.');}
     else if(el.dataset.sponsor)hireSponsor(el.dataset.sponsor);
     else if(el.dataset.upgrade)upgradeStadium(el.dataset.upgrade);
     else if(el.dataset.credit){const t=currentTeam();t.budget+=50000;saveState();render();toast('Kredit aufgenommen','+50.000 € Vereinsbudget.');}

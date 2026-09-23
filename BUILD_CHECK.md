@@ -1,24 +1,43 @@
-STREET KINGS MANAGER – FINAL BUILD CHECK
+STREET KINGS MANAGER — FIXED BUILD V3.0.0
 
-Integrated:
-- STREET KINGS design asset pack and reference sheets
-- 25 clubs / 3 leagues: 8 + 9 + 8
-- 25 individual club crests in assets/clubs/
-- mobile bottom navigation with image icons
-- home/club/team/tactics/league/games/market/city/news/more/settings systems
-- live 5v5 simulation with 4 field players + goalkeeper per side
-- animated player movement and moving ball
-- live events, shots, goals, score, clock and 2:00 progress
-- sponsor artwork, stadium artwork, city artwork and kits/player assets
-- old saves with an outdated league structure are rebuilt to the new 25-team structure
+SOURCE / DESIGN
+- Club + UI assets are extracted from the two user-provided design sheets.
+- 25 club crests are individual PNGs in assets/clubs/.
+- Branding, menu icons, player sprites, kits, city, map, stadium, sponsors and UI reference pieces are included.
 
-Checks performed:
-- app.js syntax check: PASS
-- asset reference scan: PASS (0 missing referenced assets)
+FIXES
+- First start now forces the manager to choose ONE of 25 clubs before the game begins.
+- Clubs are selectable by Liga 1 / Liga 2 / Liga 3.
+- Transfer market now generates 48 live player listings instead of only a small 4–5 player view.
+- Separate Transfers page added.
+- Sponsor system is visible on Home, Team/Kit view and Sponsor menu.
+- Sponsor assets from the design sheet are used in-game.
+- Exact-sheet logo is used in the home hero.
+- Exact-sheet club crests are used in team/table/selection views.
+- Kit assets are shown on the Team page with the active sponsor.
+- Navigation and dynamic buttons audited against their event handlers.
+- Old saves are migrated to the new 25-team / 3-league structure and re-open the club-selection step on V3 update.
+
+LIVE MATCH
+- 120 seconds real time.
+- Full 5v5 visualization: 4 field players + goalkeeper per side.
+- Fixed field view: no fake camera-pan animation.
+- Players reposition continuously around the ball.
+- Ball has an actual holder and target.
+- Pass actions move the ball from player to player.
+- Dribble/carry actions move player + ball together.
+- Tackles can change possession.
+- Shots have trajectories toward goal.
+- Saves / misses / goals resolve from player strength and pressure.
+- Goals reset both teams for a new kickoff.
+- Score, possession, shots, timer and live commentary update during play.
+
+STATIC VALIDATION
+- app.js syntax: PASS (node --check)
+- referenced assets: PASS (0 missing)
 - club crest count: PASS (25)
-- team data count: PASS (25)
-- league distribution: PASS (8 / 9 / 8)
-- navigation target/map consistency: checked
-- dynamic button handler coverage: checked from rendered data-* actions
+- render-page map: PASS (17 pages including Transfers)
+- button dataset audit: PASS; non-click metadata fields side/index/fixture-type are intentionally read from elements carrying another actionable dataset.
 
-Note: a full tap-by-tap run in a real iPhone Safari session is not available inside this build environment; the validation above is local static/runtime-source validation.
+NOTE
+- A full real-tap Safari session on an iPhone cannot be reproduced inside this build environment. The code, asset paths, structure and event wiring were checked locally.
