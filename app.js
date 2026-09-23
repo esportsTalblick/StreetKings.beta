@@ -1,28 +1,48 @@
-/* Street Kings Manager
-   Browser reimplementation of the documented Grand Slam systems:
-   team management, coaches, stadium upgrades, simulation, leagues,
-   transfers, draft, sponsors, economics, stats, saves and dynamic squads.
-*/
+/*
+ * STREET KINGS: MANAGER — mobile-first browser edition
+ * Replacement file: app.js
+ * - 100% touch-oriented navigation
+ * - 5-a-side: 4 outfield + 1 GK
+ * - 120 second live match simulation
+ * - dynamic transfer marketplace with live listings/auctions
+ * - fixtures/friendlies, draft, coaches, sponsors, stadium, finances, stats
+ * - local save + JSON export/import
+ */
 (() => {
   'use strict';
 
-  const $ = (s, r=document) => r.querySelector(s);
-  const $$ = (s, r=document) => [...r.querySelectorAll(s)];
-  const clone = o => JSON.parse(JSON.stringify(o));
-  const money = n => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
-  const dateDE = d => new Date(d).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const uid = p => p + Math.random().toString(36).slice(2,9);
-  const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
+  const APP_KEY = 'streetKingsSaveV2';
+  const LEGACY_KEY = 'streetKingsSave';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  const money = n => new Intl.NumberFormat('de-DE', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(Math.round(n || 0));
+  const dateDE = d => new Date(d).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'});
+  const timeDE = d => new Date(d).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+  const clamp = (n,a,b) => Math.max(a, Math.min(b,n));
   const pick = arr => arr[Math.floor(Math.random()*arr.length)];
-  const weighted = pairs => { const t=pairs.reduce((a,x)=>a+x[1],0); let r=Math.random()*t; for(const [v,w] of pairs){r-=w;if(r<=0)return v;} return pairs[pairs.length-1][0]; };
+  const uid = p => `${p}_${Math.random().toString(36).slice(2,10)}`;
+  const avg = (arr, fn) => arr.length ? arr.reduce((s,x)=>s+fn(x),0)/arr.length : 0;
 
+  const POSITIONS = ['GK','CB','LB','RB','MF','LW','RW','ST'];
+  const FIRST = ['Jay','Rico','Dario','Karim','Matteo','Noah','Emir','Jonas','Luca','Timo','Matti','Leo','Elias','Nico','Sami','Finn','Milan','Ben','Yasin','Jan','Mika','Nils','Toni','Amin'];
+  const LAST = ['Keller','Braun','Wagner','Reinhardt','Yilmaz','Schmidt','Koch','Fischer','Bauer','Klein','Weber','Lenz','Roth','Köhler','Seidel','Vogt','Meyer','Aydin','Neumann','Haas','Jäger','Hartung','Demir','Kovac'];
+  const HAIR = ['black','brown','blond','dark'];
+  const SKIN = ['light','tan','dark'];
+  const TEAM_COLORS = ['#39f2a5','#ff5c67','#6fb7ff','#f3c54f','#be9cff','#6ee7f5','#ff9f68','#f47edc'];
+  const WEATHER = [
+    {name:'Klar',mult:1.02,icon:'☀',pitch:'Trocken'},
+    {name:'Bewölkt',mult:1.00,icon:'☁',pitch:'Normal'},
+    {name:'Leichter Regen',mult:0.97,icon:'☂',pitch:'Rutschig'},
+    {name:'Windig',mult:0.96,icon:'≋',pitch:'Windig'}
+  ];
   const SPONSORS = [
-    {id:'aarwerk',name:'AARWERK ENERGIE',tier:1,pay:12000,bonus:0.02,color:'#39ef9a'},
-    {id:'taunus',name:'TAUNUS MOBIL',tier:2,pay:16000,bonus:0.03,color:'#65b7ff'},
-    {id:'lahnprint',name:'LAHNPRINT',tier:1,pay:9500,bonus:0.015,color:'#f0c75c'},
-    {id:'einrich',name:'EINRICH BAU & SERVICE',tier:3,pay:21000,bonus:0.04,color:'#ff8a65'},
-    {id:'katzsport',name:'KATZ SPORTWERK',tier:2,pay:14500,bonus:0.025,color:'#c59cff'},
-    {id:'talblick',name:'TALBLICK AUTO',tier:3,pay:23500,bonus:0.045,color:'#7ef0ff'}
+    {id:'rewe',name:'REWE Katzenelnbogen',tier:1,pay:11000,bonus:0.02,accent:'#ef233c'},
+    {id:'ksk',name:'Kreissparkasse Rhein-Lahn',tier:2,pay:16000,bonus:0.03,accent:'#e51c2e'},
+    {id:'schaefer',name:'Schäfer Garten & Landschaft',tier:2,pay:14500,bonus:0.025,accent:'#57b957'},
+    {id:'belzer',name:'Autohaus Belzer',tier:3,pay:21500,bonus:0.04,accent:'#9ea9b2'},
+    {id:'aarwerk',name:'AARWERK Energie',tier:3,pay:24000,bonus:0.045,accent:'#ffd34d'},
+    {id:'talblick',name:'Talblick Sport',tier:3,pay:27000,bonus:0.05,accent:'#45f2b0'}
   ];
   const TEAM_NAMES = [
     ['Talblick FC','Katzenelnbogen'],['Aar-Einrich United','Hahnstätten'],['Diez Street Crew','Diez'],['Lahn Kicker','Limburg'],
@@ -32,276 +52,564 @@
     ['Hochtaunus Royals','Idstein'],['Nassau Athletic','Nassau'],['Kannenbäcker FC','Montabaur'],['Aar Valley 05','Aar-Einrich'],
     ['Rheingau Five','Geisenheim'],['Lahnstein South','Lahnstein'],['Taunus Park','Niedernhausen'],['Kreispark United','Limburg']
   ];
-  const FIRST = ['Jay','Rico','Dario','Karim','Matteo','Noah','Emir','Jonas','Luca','Timo','Matti','Leo','Elias','Nico','Sami','Finn','Milan','Ben','Yasin','Jan'];
-  const LAST = ['Keller','Braun','Wagner','Reinhardt','Yilmaz','Schmidt','Koch','Fischer','Bauer','Klein','Weber','Lenz','Roth','Köhler','Seidel','Vogt','Meyer','Aydin','Neumann','Haas'];
-  const HAIR = ['black','brown','blond','dark'];
-  const SKIN = ['light','tan','dark'];
-  const POS = ['GK','CB','CB','LW','RW','ST','MF','LB','RB','ST'];
-  const PLAYER_FIRST=[...FIRST];
-  const CITY_LINES=['Katzenelnbogen','Aar-Einrich','Rhein-Lahn','Untertaunus'];
-  const WEATHER=[
-    {name:'Klar',mult:1.01,icon:'☀️'},{name:'Bewölkt',mult:1,icon:'⛅'},{name:'Leichter Regen',mult:.98,icon:'🌧️'},{name:'Windig',mult:.97,icon:'💨'}
-  ];
 
-  function avatarSvg(player, accent='#41f3a5') {
-    const skin = player.skin==='dark'?'#8d5a3d':player.skin==='tan'?'#bd8159':'#e2ad83';
-    const hair = player.hair==='blond'?'#d2aa5c':player.hair==='brown'?'#604128':player.hair==='dark'?'#231d1d':'#151515';
-    const kit=player.teamColor||accent;
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" shape-rendering="crispEdges"><rect width="64" height="64" rx="10" fill="#0b171e"/><rect x="22" y="8" width="20" height="18" rx="6" fill="${skin}"/><rect x="20" y="7" width="24" height="8" rx="3" fill="${hair}"/><rect x="20" y="14" width="6" height="4" fill="${hair}"/><rect x="38" y="14" width="6" height="4" fill="${hair}"/><rect x="16" y="27" width="32" height="22" rx="5" fill="${kit}"/><rect x="12" y="31" width="7" height="17" rx="2" fill="${kit}"/><rect x="45" y="31" width="7" height="17" rx="2" fill="${kit}"/><rect x="22" y="49" width="8" height="12" fill="#d8dde0"/><rect x="34" y="49" width="8" height="12" fill="#d8dde0"/><rect x="25" y="19" width="4" height="4" fill="#071016"/><rect x="36" y="19" width="4" height="4" fill="#071016"/><rect x="27" y="23" width="10" height="2" fill="#7e3f30"/></svg>`)} `;
-  }
-  function logoSvg(){return 'assets/logo.svg'}
-
-  function makePlayer(i, teamColor='#41f3a5', forcedPos=null, ratingBase=70){
-    const pos=forcedPos||POS[i%POS.length];
-    const age=17+Math.floor(Math.random()*14);
-    const rating=clamp(Math.round(ratingBase+(Math.random()*16-7)),49,91);
-    const skill={pace:0,shoot:0,pass:0,def:0,control:0,lead:0};
-    const roleBias={GK:{def:9,control:3,pass:4,lead:2},CB:{def:10,lead:2,pass:3},LB:{pace:6,def:7,pass:4},RB:{pace:6,def:7,pass:4},MF:{pass:10,control:8,lead:3,shoot:2},LW:{pace:10,control:8,shoot:6,pass:4},RW:{pace:10,control:8,shoot:6,pass:4},ST:{shoot:12,pace:6,control:7,lead:1}}[pos];
-    for(const k of Object.keys(skill)) skill[k]=clamp(Math.round(rating-12+Math.random()*14+(roleBias[k]||0)),35,97);
-    const name=FIRST[i%FIRST.length]+' '+LAST[(i*7+Math.floor(i/3))%LAST.length];
-    return {id:uid('p'),name,pos,age,rating,skill,salary:Math.round((rating*rating*3)+age*240),value:Math.round((rating*rating*18)+(28-age)*900),form:Math.round(90+Math.random()*10),teamColor,skin:pick(SKIN),hair:pick(HAIR),games:0,goals:0,assists:0,yellow:0};
-  }
-  function makeRoster(teamColor='#41f3a5', quality=68){
-    const arr=[]; for(let i=0;i<10;i++) arr.push(makePlayer(i,teamColor,POS[i],quality)); return arr;
-  }
-  function teamObj(name,city,quality=60,tier=3,color=null){
-    const c=color||pick(['#4ff6b1','#ff5e68','#65b7ff','#f2c75d','#b596ff','#71ecff','#ff9b63']);
-    const roster=makeRoster(c,quality);
-    return {id:uid('t'),name,city,quality,baseQuality:quality,teamColor:c,budget: tier===1?250000:tier===2?175000:110000,roster,coach:null,form:[pick(['W','D','L']),pick(['W','D','L']),pick(['W','D','L']),pick(['W','D','L']),pick(['W','D','L'])],stadium:{name:`${name} Street Arena`,capacity:120,level:1,upgrades:{}},sponsor:null,stats:{played:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,homeRevenue:0},youth:1};
-  }
-  function buildTeams(){
-    const tiers=[1,1,1,1,2,2,2,2,3,3,3,3,3,3,3,3];
-    const out=[]; for(let i=0;i<TEAM_NAMES.length;i++){ const q=tiers[i]===1?76:tiers[i]===2?69:62; out.push(teamObj(TEAM_NAMES[i][0],TEAM_NAMES[i][1],q,tiers[i],i===0?'#41f3a5':null)); }
-    return out;
-  }
-  function makeLeague(teams,name,level){
-    const league={id:'L'+level,name,level,teams:teams.map(t=>t.id),schedule:[],standings:{},currentRound:1};
-    for(const t of teams) league.standings[t.id]={teamId:t.id,played:0,wins:0,draws:0,losses:0,gf:0,ga:0,gd:0,points:0};
-    return league;
-  }
-  function roundRobin(teamIds){
-    const ids=[...teamIds]; if(ids.length%2)ids.push(null); const rounds=[]; let n=ids.length;
-    for(let r=0;r<n-1;r++){
-      const round=[]; for(let i=0;i<n/2;i++){const a=ids[i],b=ids[n-1-i]; if(a&&b) round.push([r%2?a:b,r%2?b:a]);}
-      rounds.push(round); ids.splice(1,0,ids.pop());
-    }
-    const games=[]; let roundNo=1;
-    for(const rd of rounds){ for(const [home,away] of rd) games.push({id:uid('g'),round:roundNo,home,away,played:false,date:null,result:null}); roundNo++; }
-    const second=games.map(g=>({...clone(g),id:uid('g'),home:g.away,away:g.home,played:false,result:null,round:g.round+rounds.length}));
-    return games.concat(second);
-  }
-
-  const state={
-    version:'1.0.0',firstRun:true,manager:'Manager',active:'home',week:1,date:new Date('2026-08-15T18:00:00'),season:1,leagues:{},teams:{},userTeamId:null,market:[],coaches:[],news:[],toast:null,
-    teamTab:'overview',leagueTab:'table',marketFilter:'all',tactic:'4-1',draftTab:'silver',selectedPlayerId:null,notifications:2
+  const state = {
+    version:'2.0.0', firstRun:true, manager:'Manager', active:'home', season:1, week:1,
+    date:new Date('2026-08-15T18:00:00'), userTeamId:null, teams:{}, leagues:{}, market:[], coaches:[], news:[],
+    friendlies:[], marketFilter:'all', tactic:'1-2-2', tactics:{pressing:62,risk:50,tempo:58,passing:56}, notifications:2,
+    trophies:0, lastMatch:null, liveMatch:null
   };
 
-  function initState(){
-    const saved=localStorage.getItem('streetKingsSave');
-    if(saved){try{Object.assign(state,JSON.parse(saved)); state.date=new Date(state.date); state.firstRun=false; return;}catch(e){console.warn('Save invalid',e)}}
-    const teams=buildTeams(); teams.forEach(t=>state.teams[t.id]=t); state.userTeamId=teams[0].id;
-    state.leagues.L1=makeLeague(teams.slice(0,8),'Rhein-Lahn Premier',1);
-    state.leagues.L2=makeLeague(teams.slice(8,16),'Taunus Pro League',2);
-    state.leagues.L3=makeLeague(teams.slice(16,24),'Kreisstraße-Liga Katzenelnbogen',3);
-    // User starts in the lowest league, mirroring the original manager progression model.
-    state.leagues.L1.teams=[...teams.slice(1,8),teams[23]].map(t=>t.id);
-    state.leagues.L2.teams=teams.slice(8,16).map(t=>t.id);
-    state.leagues.L3.teams=[teams[0].id,...teams.slice(16,23).map(t=>t.id)];
-    for(const l of Object.values(state.leagues)) l.schedule=[];
-    for(const l of Object.values(state.leagues)) l.schedule=roundRobin(l.teams);
-    state.teams[state.userTeamId].budget=250000; state.teams[state.userTeamId].stadium.capacity=180; state.teams[state.userTeamId].sponsor=clone(SPONSORS[1]);
-    state.market=generateMarket(18);
-    state.coaches=generateCoaches();
-    state.news=[
-      {title:'Willkommen in der Street-Liga',body:'Dein Club startet in Katzenelnbogen. Kleine Arena, große Ziele.',icon:'assets/ui/news.svg'},
-      {title:'Neuer Bolzplatz geplant',body:'Die Region setzt auf mehr Street-Soccer-Plätze.',icon:'assets/stadium/stadium.svg'},
-      {title:'Top-Talent aus Diez',body:'Ein 17-jähriger Flügelspieler taucht im Scouting-Radar auf.',icon:'assets/players/pix-03.svg'}
-    ];
-    recalcAll(); saveState();
+  function playerAvatar(p, accent='#41f3a5', small=false){
+    const skin = p.skin==='dark'?'#87573e':p.skin==='tan'?'#b97a54':'#dfad84';
+    const hair = p.hair==='blond'?'#d5ad63':p.hair==='brown'?'#5b402d':p.hair==='dark'?'#241d1b':'#121212';
+    const kit = p.teamColor || accent;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${small?52:76}" height="${small?52:76}" shape-rendering="crispEdges"><rect width="100%" height="100%" rx="12" fill="#081118"/><rect x="25%" y="12%" width="50%" height="28%" rx="8" fill="${skin}"/><rect x="22%" y="10%" width="56%" height="14%" rx="6" fill="${hair}"/><rect x="19%" y="38%" width="62%" height="32%" rx="6" fill="${kit}"/><rect x="13%" y="43%" width="13%" height="26%" fill="${kit}"/><rect x="74%" y="43%" width="13%" height="26%" fill="${kit}"/><rect x="32%" y="69%" width="13%" height="23%" fill="#dce4e8"/><rect x="55%" y="69%" width="13%" height="23%" fill="#dce4e8"/><rect x="34%" y="29%" width="6%" height="6%" fill="#071016"/><rect x="60%" y="29%" width="6%" height="6%" fill="#071016"/></svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   }
-  function currentTeam(){return state.teams[state.userTeamId]}
-  function currentLeague(){return Object.values(state.leagues).find(l=>l.teams.includes(state.userTeamId)) || state.leagues.L3}
-  function isUserLeague(l){return l.teams.includes(state.userTeamId)}
 
-  function generateMarket(count=15){ const out=[]; for(let i=0;i<count;i++){const p=makePlayer(200+i,pick(['#ff5e68','#65b7ff','#f1c75b','#b596ff']),pick(['GK','CB','LW','RW','MF','ST']),61+Math.random()*17); p.teamId=null;p.value=Math.round(p.value*0.85);out.push(p)} return out; }
+  function crest(team){
+    if(team && team.id===state.userTeamId && team.name==='Talblick FC') return 'assets/crest-talblick.svg';
+    const c = team?.teamColor || '#39f2a5';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" shape-rendering="crispEdges"><path d="M32 4 56 14v20c0 15-9 24-24 27C17 58 8 49 8 34V14Z" fill="#071016"/><path d="M32 8 52 16v17c0 12-7 20-20 24-13-4-20-12-20-24V16Z" fill="${c}"/><path d="M19 27h26v7H19zM27 20h10v22H27z" fill="#071016"/></svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  }
+
+  function makePlayer(seed, teamColor='#39f2a5', forcedPos=null, base=67){
+    const pos=forcedPos||pick(POSITIONS), age=17+Math.floor(Math.random()*12);
+    const rating=clamp(Math.round(base + (Math.random()*18-9)), 48, 92);
+    const bias={GK:{def:12,pass:4,control:4},CB:{def:13,pass:4},LB:{pace:7,def:8,pass:5},RB:{pace:7,def:8,pass:5},MF:{pass:11,control:9,shoot:3},LW:{pace:10,control:9,shoot:5,pass:3},RW:{pace:10,control:9,shoot:5,pass:3},ST:{shoot:13,pace:7,control:8}}[pos];
+    const skill={pace:0,shoot:0,pass:0,def:0,control:0,lead:0};
+    Object.keys(skill).forEach(k=>skill[k]=clamp(Math.round(rating-10+Math.random()*14+(bias?.[k]||0)),35,98));
+    const name=`${FIRST[seed%FIRST.length]} ${LAST[(seed*5+Math.floor(seed/4))%LAST.length]}`;
+    return {id:uid('p'),name,pos,age,rating,skill,salary:Math.round(700+rating*rating*1.8+age*70),value:Math.round(30000+rating*rating*20+(24-age)*1700),form:Math.round(78+Math.random()*22),teamColor,skin:pick(SKIN),hair:pick(HAIR),games:0,goals:0,assists:0,yellow:0,marketHeat:Math.random()};
+  }
+
+  function makeRoster(teamColor, quality){
+    const pos=['GK','CB','LB','RB','ST','MF','LW','RW','ST','MF'];
+    return pos.map((p,i)=>makePlayer(i+Math.round(Math.random()*3),teamColor,p,quality));
+  }
+
+  function teamObj(name,city,quality,tier,color){
+    const c=color || pick(TEAM_COLORS);
+    return {id:uid('t'),name,city,quality,baseQuality:quality,teamColor:c,budget:tier===1?310000:tier===2?205000:125000,roster:makeRoster(c,quality),coach:null,coachBoost:0,
+      form:['W','D','W','L','S'],stadium:{name:`${name} Street Arena`,capacity:180,level:1,upgrades:{}},sponsor:null,
+      stats:{played:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,homeRevenue:0,shots:0,xg:0},youth:2,titles:0};
+  }
+
+  function buildTeams(){
+    return TEAM_NAMES.map((x,i)=>teamObj(x[0],x[1],i<8?74:i<16?68:62,i<8?1:i<16?2:3,i===0?'#39f2a5':null));
+  }
+
+  function makeLeague(teams,name,level){
+    const l={id:`L${level}`,name,level,teams:teams.map(t=>t.id),schedule:[],standings:{},currentRound:1};
+    l.teams.forEach(id=>l.standings[id]={teamId:id,played:0,wins:0,draws:0,losses:0,gf:0,ga:0,gd:0,points:0});
+    l.schedule=roundRobin(l.teams); return l;
+  }
+
+  function roundRobin(ids){
+    const arr=[...ids], hasBye=arr.length%2===1; if(hasBye)arr.push(null); const n=arr.length, first=[];
+    for(let r=0;r<n-1;r++){
+      const games=[]; for(let i=0;i<n/2;i++){const a=arr[i],b=arr[n-1-i]; if(a&&b)games.push({id:uid('g'),round:r+1,home:r%2?a:b,away:r%2?b:a,played:false,result:null});}
+      first.push(games); arr.splice(1,0,arr.pop());
+    }
+    const games=first.flat();
+    const returnLeg=games.map(g=>({id:uid('g'),round:g.round+n-1,home:g.away,away:g.home,played:false,result:null}));
+    return [...games,...returnLeg];
+  }
+
+  function generateMarket(n=18){
+    const out=[]; for(let i=0;i<n;i++){
+      const p=makePlayer(100+i,pick(TEAM_COLORS),pick(['GK','CB','LB','RB','MF','LW','RW','ST']),61+Math.random()*18);
+      p.teamId=null; p.value=Math.round(p.value*(0.72+Math.random()*0.28)); p.currentPrice=p.value; p.listingEndsAt=Date.now()+90000+Math.random()*150000; p.watch=false; p.bids=0;
+      out.push(p);
+    }
+    return out;
+  }
+
   function generateCoaches(){
     return [
-      {id:'c1',name:'Mika Härtel',role:'Offensiv',boost:7,form:0,price:15000,league:3,active:false},
-      {id:'c2',name:'Rene Falk',role:'Defensiv',boost:6,form:0,price:13500,league:3,active:false},
-      {id:'c3',name:'Sami Jäger',role:'Tempo',boost:8,form:0,price:18500,league:2,active:false},
-      {id:'c4',name:'Lena Koch',role:'Allround',boost:7,form:0,price:17500,league:1,active:false},
-      {id:'c5',name:'Milo Hartung',role:'Mentalität',boost:5,form:0,price:10500,league:3,active:false}
+      {id:'c1',name:'Mika Härtel',role:'Offensive',boost:7,price:15000,league:3},
+      {id:'c2',name:'Rene Falk',role:'Defensive',boost:6,price:14000,league:3},
+      {id:'c3',name:'Sami Jäger',role:'Tempo',boost:8,price:18500,league:2},
+      {id:'c4',name:'Lena Koch',role:'Allround',boost:7,price:17500,league:1},
+      {id:'c5',name:'Milo Hartung',role:'Mentalität',boost:5,price:10500,league:3}
     ];
   }
-  function effectiveCoachBoost(team=currentTeam()){
-    if(!team.coach)return 0; const c=state.coaches.find(x=>x.id===team.coach); if(!c)return 0; c.form=Math.round(80+Math.random()*20); return c.boost*(c.form/100);
-  }
-  function teamStrength(team){
-    const starters=team.roster.slice(0,5); const avg=starters.reduce((s,p)=>s+p.rating,0)/starters.length; return avg*(1+effectiveCoachBoost(team)/100)*(0.95+Math.random()*0.1)*(1+(team.form.filter(x=>x==='W').length-team.form.filter(x=>x==='L').length)*.012);
-  }
-  function recalcAll(){
-    for(const l of Object.values(state.leagues)){
-      for(const id of l.teams){ if(!l.standings[id])l.standings[id]={teamId:id,played:0,wins:0,draws:0,losses:0,gf:0,ga:0,gd:0,points:0}; }
+
+  function initState(){
+    const raw=localStorage.getItem(APP_KEY)||localStorage.getItem(LEGACY_KEY);
+    if(raw){
+      try{const d=JSON.parse(raw); Object.assign(state,d); normalizeState(); state.firstRun=!!d.firstRun; return;}catch(e){console.warn('Save konnte nicht geladen werden',e);}
     }
+    const teams=buildTeams(); teams.forEach(t=>state.teams[t.id]=t); state.userTeamId=teams[0].id;
+    // User club starts in the regional third tier.
+    state.leagues.L1=makeLeague(teams.slice(0,8),'Rhein-Lahn Premier',1);
+    state.leagues.L2=makeLeague(teams.slice(8,16),'Taunus Pro League',2);
+    state.leagues.L3=makeLeague([teams[0],...teams.slice(16,23)],'Kreisstraße-Liga Katzenelnbogen',3);
+    state.leagues.L1.teams=teams.slice(1,8).map(t=>t.id).concat([teams[23].id]);
+    state.leagues.L2.teams=teams.slice(8,16).map(t=>t.id);
+    Object.values(state.leagues).forEach(l=>{l.teams.forEach(id=>l.standings[id] ||= {teamId:id,played:0,wins:0,draws:0,losses:0,gf:0,ga:0,gd:0,points:0});l.schedule=roundRobin(l.teams);});
+    const t=currentTeam(); t.sponsor={...SPONSORS[0]}; t.stadium.capacity=220;
+    state.market=generateMarket(); state.coaches=generateCoaches();
+    state.news=[
+      {title:'Willkommen in Katzenelnbogen',body:'Dein Street-Soccer-Club startet. Die Stadt schaut zu.',kind:'city'},
+      {title:'Bolzplatz im Fokus',body:'Mit Ausbau, Licht und Tribüne wird aus dem Platz eine echte Arena.',kind:'stadium'},
+      {title:'Marktplatz geöffnet',body:'Neue Talente aus Aar-Einrich und Rhein-Lahn warten auf Angebote.',kind:'market'}
+    ];
+    state.friendlies=[];
+    state.firstRun=true;
+    saveState();
   }
-  function simulateMatch(home,away){
-    const weather=pick(WEATHER); const hs=teamStrength(home)*(weather.mult)+(home.id===state.userTeamId?1.05:1); const as=teamStrength(away)*weather.mult;
-    let lambdaH=clamp(1.8+(hs-as)/36,0.4,4.8),lambdaA=clamp(1.55+(as-hs)/38,0.35,4.4);
-    const goals=lam=>{let L=Math.exp(-lam),k=0,p=1;while(p>L&&k<9){k++;p*=Math.random()}return Math.max(0,k-1)};
-    let hg=goals(lambdaH),ag=goals(lambdaA); if(hg===ag&&Math.random()<.08){ if(Math.random()<.5)hg++; else ag++; }
-    const scorers=[]; for(const [team,gs] of [[home,hg],[away,ag]])for(let i=0;i<gs;i++){const st=pick(team.roster.slice(1).filter(p=>['ST','LW','RW','MF'].includes(p.pos))||team.roster); if(st){st.goals++;st.games++;scorers.push({team:team.id,player:st.name})}}
-    for(const p of home.roster) p.games++; for(const p of away.roster) p.games++;
-    return {hg,ag,weather,scorers};
+
+  function normalizeState(){
+    state.active=state.active||'home'; state.tactic=state.tactic||'1-2-2'; state.tactics=state.tactics||{pressing:62,risk:50,tempo:58,passing:56};
+    state.market=Array.isArray(state.market)?state.market:generateMarket(); state.coaches=Array.isArray(state.coaches)?state.coaches:generateCoaches(); state.news=Array.isArray(state.news)?state.news:[]; state.friendlies=Array.isArray(state.friendlies)?state.friendlies:[];
+    state.date=new Date(state.date||Date.now());
+    Object.values(state.teams||{}).forEach(t=>{
+      t.roster ||= makeRoster(t.teamColor||'#39f2a5',t.quality||65); t.stats ||= {played:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,homeRevenue:0,shots:0,xg:0}; t.form ||= ['W','D','W','L','S'];
+      t.stadium ||= {name:`${t.name} Street Arena`,capacity:180,level:1,upgrades:{}}; t.stadium.upgrades ||= {}; t.youth ||= 1; t.budget ||= 120000;
+    });
+    Object.values(state.leagues||{}).forEach(l=>{l.standings ||= {};l.schedule ||= [];});
+    state.liveMatch=null;
   }
-  function applyResult(league,game,res){
-    const H=state.teams[game.home],A=state.teams[game.away]; H.stats.played++;A.stats.played++; H.stats.gf+=res.hg;H.stats.ga+=res.ag;A.stats.gf+=res.ag;A.stats.ga+=res.hg;
-    const sh=league.standings[H.id],sa=league.standings[A.id]; for(const s of [sh,sa])s.played++;
-    if(res.hg>res.ag){H.stats.wins++;A.stats.losses++;sh.wins++;sh.points+=3;sa.losses++;}
-    else if(res.hg<res.ag){A.stats.wins++;H.stats.losses++;sa.wins++;sa.points+=3;sh.losses++;}
-    else{H.stats.draws++;A.stats.draws++;sh.draws++;sa.draws++;sh.points++;sa.points++;}
-    sh.gf+=res.hg;sh.ga+=res.ag;sh.gd=sh.gf-sh.ga;sa.gf+=res.ag;sa.ga+=res.hg;sa.gd=sa.gf-sa.ga;
-    H.form=[...(H.form||[]).slice(-4),res.hg>res.ag?'W':res.hg===res.ag?'D':'L']; A.form=[...(A.form||[]).slice(-4),res.ag>res.hg?'W':res.hg===res.ag?'D':'L'];
-    // economy
-    const sponsor=H.sponsor||null; const crowd=Math.round(H.stadium.capacity*(0.65+Math.random()*.3)); const ticket=H.id===state.userTeamId?crowd*9:0; H.budget+=ticket; H.stats.homeRevenue+=ticket; if(H.id===state.userTeamId && sponsor){H.budget+=sponsor.pay;}
-    if(H.id===state.userTeamId) H.budget += res.hg>res.ag?5000:res.hg===res.ag?1800:0;
-    if(A.id===state.userTeamId) A.budget += res.ag>res.hg?3000:0;
-    game.played=true; game.result={hg:res.hg,ag:res.ag,weather:res.weather.name,scorers:res.scorers}; return game;
+
+  function saveState(){
+    const clean={...state,liveMatch:null,date:new Date(state.date).toISOString()};
+    localStorage.setItem(APP_KEY,JSON.stringify(clean));
   }
-  function nextUserGame(){ const l=currentLeague(); return l.schedule.find(g=>!g.played&&(g.home===state.userTeamId||g.away===state.userTeamId)); }
-  function simulateNext(){
-    const l=currentLeague(); const ng=nextUserGame(); if(!ng){seasonEnd();return}
-    const round=ng.round; const roundGames=l.schedule.filter(g=>g.round===round&&!g.played); for(const g of roundGames){const H=state.teams[g.home],A=state.teams[g.away]; applyResult(l,g,simulateMatch(H,A));}
-    state.week++; state.date=new Date(new Date(state.date).getTime()+7*86400000);
-    for(const t of Object.values(state.teams)){ t.budget-=t.roster.reduce((s,p)=>s+p.salary,0)/12; if(t.budget<0)t.budget=0; }
-    // player development
-    for(const p of currentTeam().roster){ const delta=p.age<22?(Math.random()<.55?1:0):(Math.random()<.15?1:Math.random()<.25?-1:0); p.rating=clamp(p.rating+delta,40,96); for(const k of Object.keys(p.skill))p.skill[k]=clamp(p.skill[k]+(Math.random()<.25?1:0),35,99); }
-    state.news.unshift({title:`Spieltag ${round} abgeschlossen`,body:`${state.teams[ng.home].name} gegen ${state.teams[ng.away].name} ist gespielt.`,icon:'assets/ui/ball.svg'}); state.news=state.news.slice(0,12);
-    saveState(); toast(`Spieltag ${round} simuliert`,'Ergebnisse und Tabelle wurden aktualisiert.'); render();
+
+  function currentTeam(){return state.teams[state.userTeamId];}
+  function currentLeague(){return Object.values(state.leagues).find(l=>l.teams.includes(state.userTeamId)) || state.leagues.L3;}
+  function standings(l){return Object.values(l.standings).sort((a,b)=>b.points-a.points||b.gd-a.gd||b.gf-a.gf);}
+  function nextUserGame(){
+    const league=currentLeague(); return league?.schedule.find(g=>!g.played && (g.home===state.userTeamId || g.away===state.userTeamId));
   }
-  function seasonEnd(){
-    const l=currentLeague(); const sorted=standings(l);
-    const idx=sorted.findIndex(x=>x.teamId===state.userTeamId); const promo=idx<=1; const releg=idx>=sorted.length-2;
-    let msg=`Saison beendet. Platz ${idx+1} von ${sorted.length}.`;
-    if(promo && l.level>1){moveLeague(l.level,l.level-1);msg+=' Aufstieg!';}
-    if(releg && l.level<3){moveLeague(l.level,l.level+1);msg+=' Abstieg.';}
-    state.season++;state.week=1;state.date=new Date(state.date.getTime()+30*86400000);
-    for(const ll of Object.values(state.leagues)){ for(const s of Object.values(ll.standings)){s.played=0;s.wins=0;s.draws=0;s.losses=0;s.gf=0;s.ga=0;s.gd=0;s.points=0;} ll.schedule=roundRobin(ll.teams.map(id=>id)); ll.currentRound=1; }
-    state.news.unshift({title:'Saisonabschluss',body:msg,icon:'assets/ui/trophy.svg'});saveState();toast('Neue Saison',msg);render();
+  function teamStrength(t){
+    const starters=t.roster.slice(0,5); const base=avg(starters,p=>p.rating); const coach=state.coaches.find(c=>c.id===t.coach); const boost=coach?coach.boost:0; const form=(t.form||[]).filter(x=>x==='W').length-(t.form||[]).filter(x=>x==='L').length;
+    return base*(1+boost/100)*(1+form*0.012);
   }
-  function standings(l){ return Object.values(l.standings).sort((a,b)=>b.points-a.points||b.gd-a.gd||b.gf-a.gf); }
-  function moveLeague(levelFrom,levelTo){
-    const from=state.leagues['L'+levelFrom], to=state.leagues['L'+levelTo];
-    from.teams=from.teams.filter(id=>id!==state.userTeamId);
-    const replacement=to.teams[to.teams.length-1];
-    to.teams=to.teams.filter(id=>id!==replacement);
-    to.teams.push(state.userTeamId);
-    if(replacement && !from.teams.includes(replacement)) from.teams.push(replacement);
+  function marketLabel(pos){return pos==='GK'?'TW':pos;}
+
+  function toast(title,body=''){const el=$('#toast');if(!el)return;$('#toastTitle',el).textContent=title;$('#toastBody',el).textContent=body;el.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove('show'),3200);}
+
+  function addNews(title,body,kind='news'){
+    state.news.unshift({title,body,kind}); state.news=state.news.slice(0,20);
   }
-  function upgradeStadium(key){
-    const t=currentTeam(); const lvl=t.stadium.upgrades[key]||0; const cost=Math.round(9000*Math.pow(2,lvl)); if(t.budget<cost){toast('Zu wenig Budget',`Benötigt ${money(cost)}.`);return;} t.budget-=cost;t.stadium.upgrades[key]=lvl+1;
-    if(key==='capacity')t.stadium.capacity+=40; if(key==='lighting')t.stadium.capacity+=10; if(key==='stands')t.stadium.capacity+=80; toast('Stadion verbessert',`${key} auf Level ${lvl+1}.`);saveState();render();
+
+  function resetState(){localStorage.removeItem(APP_KEY);localStorage.removeItem(LEGACY_KEY);location.reload();}
+
+  function renderShell(){
+    const t=currentTeam(), l=currentLeague();
+    const bottom=[['home','⌂','Home'],['team','♟','Verein'],['games','⚽','Spiele'],['market','↔','Markt'],['more','☷','Mehr']];
+    return `<div class="mobile-app">
+      <header class="mobile-topbar">
+        <div class="club-head" data-page="home"><img src="${crest(t)}" alt=""><div><strong>${esc(t.name)}</strong><span>${esc(t.city)} · ${esc(l.name)}</span></div></div>
+        <div class="top-head-right"><div class="season-chip">S${state.season} · W${state.week}</div><div class="cash-chip">${money(t.budget)}</div><button class="round-icon" data-notify>•</button></div>
+      </header>
+      <main id="view" class="view"></main>
+      <nav class="bottom-nav">${bottom.map(([k,ico,label])=>`<button data-bottom="${k}" class="${state.active===k?'active':''}"><span>${ico}</span><small>${label}</small></button>`).join('')}</nav>
+      <div id="modalRoot"></div>
+      <div id="toast" class="toast"><strong id="toastTitle"></strong><span id="toastBody"></span></div>
+    </div>`;
   }
-  function buyPlayer(id){ const t=currentTeam(); const p=state.market.find(x=>x.id===id); if(!p)return; if(t.roster.length>=12){toast('Kader voll','Maximum: 12 Spieler.');return;} if(t.budget<p.value){toast('Transfer gescheitert','Nicht genug Budget.');return;} t.budget-=p.value;t.roster.push({...p,id:uid('p'),teamColor:t.teamColor,teamId:t.id});state.market=state.market.filter(x=>x.id!==id);state.news.unshift({title:'Neuzugang',body:`${p.name} unterschreibt bei ${t.name}.`,icon:'assets/ui/transfer.svg'});saveState();render();}
-  function sellPlayer(id){const t=currentTeam(); const p=t.roster.find(x=>x.id===id); if(!p || t.roster.indexOf(p)<5){toast('Spieler nicht verkäuflich','Die aktuelle Startelf braucht mindestens 5 Spieler.');return;} const val=Math.round(p.value*.8);t.roster=t.roster.filter(x=>x.id!==id);t.budget+=val;toast('Transfer abgeschlossen',`${p.name}: +${money(val)}`);saveState();render();}
-  function hireCoach(id){const t=currentTeam(),c=state.coaches.find(x=>x.id===id); if(!c)return; if(t.coach){toast('Coach-Vertrag aktiv','Entlasse zuerst den aktuellen Coach.');return;}if(t.budget<c.price){toast('Zu wenig Budget','Coach-Vertrag kann nicht finanziert werden.');return;}t.budget-=c.price;t.coach=c.id;toast('Coach verpflichtet',`${c.name} (+${c.boost}%).`);saveState();render();}
-  function fireCoach(){const t=currentTeam(); if(!t.coach)return;const c=state.coaches.find(x=>x.id===t.coach);t.budget-=c.price*2;t.coach=null;toast('Coach entlassen','Vertragsstrafe verbucht.');saveState();render();}
-  function draft(type){
-    const t=currentTeam(); const cfg={silver:{cost:7000,n:2,min:58,max:70},gold:{cost:14000,n:3,min:68,max:80},premium:{cost:26000,n:4,min:76,max:91}}[type]; if(t.budget<cfg.cost){toast('Draft nicht möglich','Budget reicht nicht.');return;} t.budget-=cfg.cost; const picks=[]; for(let i=0;i<cfg.n;i++){const p=makePlayer(900+i,t.teamColor,pick(['CB','MF','LW','RW','ST']),cfg.min+Math.random()*(cfg.max-cfg.min));p.value=Math.round(p.value*.6);p.salary=Math.round(p.salary*.8);p.draft=true;picks.push(p)} state.news.unshift({title:`${type[0].toUpperCase()+type.slice(1)} Draft`,body:`${picks.length} Talente stehen zur Auswahl.`,icon:'assets/ui/draft.svg'}); saveState(); openModal(`Draft – ${type.toUpperCase()}`,renderDraftModal(picks)); }
-  function chooseDraft(p){const t=currentTeam(); if(t.roster.length>=12){toast('Kader voll','Entferne zuerst einen Spieler.');return;}t.roster.push(p);toast('Talent verpflichtet',p.name);closeModal();saveState();render();}
-  function hireSponsor(id){const s=SPONSORS.find(x=>x.id===id);const t=currentTeam(); if(t.sponsor&&t.sponsor.id===id)return; if(t.sponsor&&s.tier<t.sponsor.tier){toast('Vertrag nicht verbessert','Der neue Sponsor hat eine niedrigere Stufe.');return;} t.sponsor=clone(s);toast('Sponsor unterschrieben',`${s.name} – ${money(s.pay)} / Spielwoche.`);saveState();render();}
-  function switchPage(page){state.active=page;window.scrollTo({top:0,behavior:'smooth'});render();closeSidebar();}
-  function saveState(){localStorage.setItem('streetKingsSave',JSON.stringify(state));}
-  function resetState(){localStorage.removeItem('streetKingsSave');location.reload()}
-  function toast(title,body=''){state.toast={title,body};const el=$('#toast');if(!el)return;el.querySelector('strong').textContent=title;el.querySelector('span').textContent=body;el.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove('show'),3200)}
-  function openModal(title,bodyHtml,opts={}){const b=$('#modalBackdrop');b.innerHTML=`<div class="modal"><div class="modal-head"><strong>${title}</strong><button class="icon-btn" data-close>✕</button></div><div class="modal-body">${bodyHtml}</div>${opts.footer===false?'':`<div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`}</div>`;b.classList.add('open');$$('[data-close]',b).forEach(x=>x.onclick=closeModal)}
-  function closeModal(){$('#modalBackdrop').classList.remove('open');}
-  function toggleSidebar(){$('.sidebar').classList.toggle('open')}
-  function closeSidebar(){$('.sidebar').classList.remove('open')}
-  function renderDraftModal(players){ return `<div class="player-grid">${players.map((p,i)=>`<div class="player-card"><div class="player-top"><div class="player-ident"><img src="${avatarSvg(p,currentTeam().teamColor)}"><div><strong>${p.name}</strong><span>${p.pos} · ${p.age} J.</span></div></div><div class="ovr">${p.rating}</div></div><div class="attrs">${attrBox('Tempo',p.skill.pace)}${attrBox('Schuss',p.skill.shoot)}${attrBox('Pass',p.skill.pass)}${attrBox('Def',p.skill.def)}</div><div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn primary" data-draft-index="${i}">Verpflichten</button></div></div>`).join('')}</div>` }
-  function attrBox(k,v){return `<div class="attr"><b>${v}</b><span>${k}</span></div>`}
+
+  function pageHead(title,sub,action=''){return `<div class="page-head"><div><div class="eyebrow">STREET KINGS · ${esc(currentTeam().city).toUpperCase()}</div><h1>${title}</h1><p>${sub}</p></div>${action?`<div class="page-action">${action}</div>`:''}</div>`;}
+  function card(title,body,cls=''){return `<section class="card ${cls}"><div class="card-title"><h2>${title}</h2></div>${body}</section>`;}
+
+  function renderHome(){
+    const t=currentTeam(),l=currentLeague(),ng=nextUserGame(); const opp=ng?state.teams[ng.home===t.id?ng.away:ng.home]:null;
+    const stand=standings(l), liveListings=state.market.slice().sort((a,b)=>b.currentPrice-a.currentPrice).slice(0,3);
+    return `${pageHead('Dein Club. Deine Straße.','Katzenelnbogen · 5er Street Soccer',`<button class="gold-btn" data-simulate="1">${ng?'SPIEL STARTEN':'SAISON ABSCHLUSS'}</button>`)}
+      <section class="hero-pixel">
+        <div class="hero-copy"><div class="hero-brand">STREET KINGS</div><div class="hero-sub">MANAGE · BUILD · PLAY</div><div class="hero-city">KATZENELNBOGEN</div><p>Kleine Stadt. Große Träume. Baue deinen Bolzplatz, entwickle 5er-Teams und schreibe deine eigene Vereinsgeschichte.</p></div>
+        <div class="hero-light"></div><div class="hero-player"></div>
+      </section>
+      <div class="ticker"><span class="live-dot"></span><strong>MARKTPLATZ LIVE</strong><div>${liveListings.map(p=>`<span>${esc(p.name.split(' ')[0])} ${p.rating} · ${money(p.currentPrice)}</span>`).join('')}</div></div>
+      ${renderNextMatchCard(ng,opp)}
+      ${renderLineupCard()}
+      ${card('Tabelle · '+esc(l.name),`<div class="table-list">${stand.slice(0,5).map((s,i)=>{const tt=state.teams[s.teamId];return `<div class="table-row ${tt.id===t.id?'me':''}"><b>${i+1}</b><img src="${crest(tt)}"><span>${esc(tt.name)}</span><small>${s.played} Sp · ${s.points} P</small></div>`}).join('')}</div><button class="ghost-btn wide" data-page="league">Komplette Tabelle</button>`)}
+      ${card('News aus der Region',`<div class="news-stack">${state.news.slice(0,4).map(n=>`<article><div class="news-thumb ${n.kind}">${n.kind==='market'?'↔':n.kind==='stadium'?'▤':'✦'}</div><div><strong>${esc(n.title)}</strong><p>${esc(n.body)}</p></div></article>`).join('')}</div><button class="ghost-btn wide" data-page="settings">Mehr Meldungen</button>`)}
+      <div class="mini-grid">
+        ${card('Budget',`<div class="mega">${money(t.budget)}</div><div class="muted">Sponsor · ${t.sponsor?esc(t.sponsor.name):'kein Vertrag'}</div>`, 'mini')}
+        ${card('Arena',`<div class="mega">${t.stadium.capacity}</div><div class="muted">Plätze · Level ${t.stadium.level}</div>`, 'mini')}
+        ${card('Jugend',`<div class="mega">${t.youth}</div><div class="muted">Akademie-Stufe</div>`, 'mini')}
+        ${card('Trophäen',`<div class="mega">${t.titles||0}</div><div class="muted">Vereinsgeschichte</div>`, 'mini')}
+      </div>`;
+  }
+
+  function renderNextMatchCard(ng,opp){
+    const t=currentTeam(); if(!ng||!opp)return card('Nächstes Spiel','<div class="empty">Keine Ligaspiele offen.</div>');
+    const home=ng.home===t.id;
+    return `<section class="card next-match"><div class="section-kicker">NÄCHSTES SPIEL · SPIELTAG ${ng.round}</div><div class="match-versus"><div><img src="${crest(t)}"><strong>${esc(t.name)}</strong><small>${esc(t.city)}</small></div><div class="versus-text">VS</div><div><img src="${crest(opp)}"><strong>${esc(opp.name)}</strong><small>${esc(opp.city)}</small></div></div><div class="match-meta"><span>◷ ${dateDE(new Date(state.date.getTime()+7*86400000))} · 18:00</span><span>⌖ ${home?esc(t.stadium.name):esc(opp.stadium.name)}</span><span>${pick(WEATHER).icon} ${pick(WEATHER).name}</span></div><button class="gold-btn wide" data-simulate="1">LIVE SIMULATION STARTEN · 2:00</button></section>`;
+  }
+
+  function formationPositions(){
+    const map={
+      '1-2-2':[{x:50,y:86},{x:23,y:58},{x:77,y:58},{x:30,y:30},{x:70,y:30}],
+      '1-1-2':[{x:50,y:86},{x:50,y:57},{x:27,y:33},{x:73,y:33},{x:50,y:19}],
+      '1-3-1':[{x:50,y:86},{x:21,y:57},{x:50,y:46},{x:79,y:57},{x:50,y:22}]
+    }; return map[state.tactic]||map['1-2-2'];
+  }
+
+  function renderLineupCard(){
+    const t=currentTeam(),players=t.roster.slice(0,5), coords=formationPositions();
+    return `<section class="card lineup-card"><div class="section-head"><div><div class="section-kicker">AUFSTELLUNG</div><h2>4 + 1 · ${esc(state.tactic)}</h2></div><button class="ghost-btn" data-page="tactics">Taktik</button></div><div class="field-mobile"><div class="field-mark center"></div><div class="field-mark box top"></div><div class="field-mark box bottom"></div><div class="field-mark line"></div>${players.map((p,i)=>`<button class="field-player" style="left:${coords[i].x}%;top:${coords[i].y}%" data-player="${p.id}"><img src="${playerAvatar(p,t.teamColor,true)}"><b>${esc(p.name.split(' ')[0])}</b><span>${marketLabel(p.pos)} ${p.rating}</span></button>`).join('')}</div><div class="team-bars"><div><span>OFF</span><b>${Math.round(avg(players,p=>p.skill.shoot))}</b><i><em style="width:${avg(players,p=>p.skill.shoot)}%"></em></i></div><div><span>PASS</span><b>${Math.round(avg(players,p=>p.skill.pass))}</b><i><em style="width:${avg(players,p=>p.skill.pass)}%"></em></i></div><div><span>DEF</span><b>${Math.round(avg(players,p=>p.skill.def))}</b><i><em style="width:${avg(players,p=>p.skill.def)}%"></em></i></div></div></section>`;
+  }
+
+  function renderTeam(){
+    const t=currentTeam();
+    return `${pageHead('Verein','Kader, Spielerentwicklung und Startelf',`<button class="gold-btn" data-page="draft">DRAFT</button>`)}
+      <div class="kpi-strip"><span><b>${Math.round(teamStrength(t))}</b><small>OVR</small></span><span><b>${t.roster.length}/12</b><small>KADER</small></span><span><b>${money(t.roster.reduce((s,p)=>s+p.value,0))}</b><small>WERT</small></span></div>
+      ${card('Kader',`<div class="player-list">${t.roster.map((p,i)=>`<article class="player-row"><button class="player-main" data-player="${p.id}"><img src="${playerAvatar(p,t.teamColor,true)}"><div><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.age} J. · Form ${p.form}%</span></div></button><div class="player-rating"><b>${p.rating}</b><small>${i<5?'STARTER':'BANK'}</small></div><button class="small-btn danger" data-sell="${p.id}" ${i<5?'disabled':''}>VERK.</button></article>`).join('')}</div>`)}
+      ${card('Entwicklung',`<div class="stats-bars"><div><span>Tempo</span><b>${Math.round(avg(t.roster,p=>p.skill.pace))}</b><i><em style="width:${avg(t.roster,p=>p.skill.pace)}%"></em></i></div><div><span>Schuss</span><b>${Math.round(avg(t.roster,p=>p.skill.shoot))}</b><i><em style="width:${avg(t.roster,p=>p.skill.shoot)}%"></em></i></div><div><span>Pass</span><b>${Math.round(avg(t.roster,p=>p.skill.pass))}</b><i><em style="width:${avg(t.roster,p=>p.skill.pass)}%"></em></i></div><div><span>Def</span><b>${Math.round(avg(t.roster,p=>p.skill.def))}</b><i><em style="width:${avg(t.roster,p=>p.skill.def)}%"></em></i></div></div>`)}
+    `;
+  }
+
+  function renderTactics(){
+    const formations=['1-2-2','1-1-2','1-3-1'];
+    return `${pageHead('Taktik','Touch-Steuerung für dein 5er-System')}
+      ${card('Formation',`<div class="segmented">${formations.map(f=>`<button class="seg ${state.tactic===f?'active':''}" data-tactic="${f}">${f}</button>`).join('')}</div>${renderLineupCard()}`)}
+      ${card('Matchplan',`<div class="range-row"><label>Pressing <b>${state.tactics.pressing}</b></label><input type="range" min="20" max="95" value="${state.tactics.pressing}" data-range="pressing"></div><div class="range-row"><label>Risiko <b>${state.tactics.risk}</b></label><input type="range" min="15" max="90" value="${state.tactics.risk}" data-range="risk"></div><div class="range-row"><label>Tempo <b>${state.tactics.tempo}</b></label><input type="range" min="25" max="95" value="${state.tactics.tempo}" data-range="tempo"></div><div class="range-row"><label>Passspiel <b>${state.tactics.passing}</b></label><input type="range" min="25" max="95" value="${state.tactics.passing}" data-range="passing"></div>`)}
+    `;
+  }
+
+  function renderLeague(){
+    const l=currentLeague(),stand=standings(l);
+    return `${pageHead('Liga',esc(l.name),`<span class="rank-pill">${stand.findIndex(x=>x.teamId===state.userTeamId)+1}. Platz</span>`)}
+      ${card('Tabelle',`<div class="league-list">${stand.map((s,i)=>{const t=state.teams[s.teamId];return `<div class="league-row ${t.id===state.userTeamId?'me':''}"><b>${i+1}</b><img src="${crest(t)}"><div><strong>${esc(t.name)}</strong><span>${esc(t.city)}</span></div><strong>${s.points}</strong><small>${s.gf}:${s.ga}</small></div>`}).join('')}</div>`)}
+      ${card('Auf- & Abstieg',`<div class="promotion"><span><b>▲</b> Platz 1–2</span><span class="muted">Aufstieg</span><span><b class="red-txt">▼</b> letzter 2</span><span class="muted">Abstieg</span></div>`)}
+    `;
+  }
+
+  function renderGames(){
+    const l=currentLeague(),t=currentTeam(),leagueGames=l.schedule.filter(g=>g.home===t.id||g.away===t.id).slice(0,8), friendlies=state.friendlies.filter(g=>!g.played);
+    const games=[...leagueGames.map(g=>({...g,type:'Liga'})),...friendlies.map(g=>({...g,type:'Freundschaft'}))].sort((a,b)=>(a.played?1:0)-(b.played?1:0)).slice(0,10);
+    return `${pageHead('Spiele','Liga, Freundschaft und Live-Simulation',`<button class="gold-btn" data-add-game>SPIEL HINZUFÜGEN</button>`)}
+      ${card('Nächste Spiele',`<div class="fixture-list">${games.map(g=>{const home=state.teams[g.home], away=state.teams[g.away];return `<button class="fixture-row" data-fixture="${g.id}" data-fixture-type="${g.type}"><div><span class="date-box">${g.played?'FT':dateDE(new Date(state.date.getTime()+Math.max(1,g.round-state.week)*7*86400000))}</span></div><div><strong>${esc(home?.name||'Team')} <span>vs</span> ${esc(away?.name||'Team')}</strong><small>${g.type} · ${g.played?`${g.result?.hg ?? ''}:${g.result?.ag ?? ''}`:'18:00'}</small></div><b>${g.played?'›':'LIVE'}</b></button>`}).join('')}</div>`)}
+    `;
+  }
+
+  function renderMarket(){
+    const filters=['all','GK','CB','LB','RB','MF','LW','RW','ST'];
+    let list=state.market.filter(p=>state.marketFilter==='all'||p.pos===state.marketFilter).slice().sort((a,b)=>b.rating-a.rating);
+    return `${pageHead('Marktplatz','Live-Angebote · Auktionen · Talente',`<button class="gold-btn" data-market-refresh>REFRESH</button>`)}
+      <div class="market-live"><span class="live-dot"></span><strong>LIVE-MARKT</strong><span>Preise bewegen sich automatisch</span></div>
+      ${card('Filter',`<div class="scroll-tabs">${filters.map(f=>`<button class="seg ${state.marketFilter===f?'active':''}" data-marketfilter="${f}">${f==='all'?'Alle':marketLabel(f)}</button>`).join('')}</div>`)}
+      ${card('Spieler',`<div class="market-list">${list.map(p=>`<article class="market-row"><img src="${playerAvatar(p,p.teamColor,true)}"><div class="market-player"><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.age} J. · Form ${p.form}%</span><div><b>${p.rating}</b><small>Marktwert</small></div></div><div class="market-price"><b>${money(p.currentPrice)}</b><small>${Math.max(0,Math.ceil((p.listingEndsAt-Date.now())/1000))}s</small><button class="small-btn gold" data-buy="${p.id}">SOFORT</button><button class="small-btn" data-bid="${p.id}">BIETEN</button></div><button class="heart ${p.watch?'on':''}" data-watch="${p.id}">♥</button></article>`).join('')}</div>`)}
+      ${card('Live-Auktionen',`<div class="auction-box"><div class="auction-head"><span class="live-dot"></span><strong>Nächstes Highlight</strong><span class="danger-txt">${Math.max(0,Math.ceil((state.market[0]?.listingEndsAt-Date.now())/1000))}s</span></div><p>Spieler wechseln live den Preis. Ein Gebot blockiert dein Budget erst bei erfolgreichem Abschluss.</p><button class="ghost-btn wide" data-market-refresh>Neue Spieler suchen</button></div>`)}
+    `;
+  }
+
+  function renderSponsors(){
+    const t=currentTeam(); return `${pageHead('Sponsoren','Partner aus Katzenelnbogen und Umgebung')}
+      <div class="sponsor-current">${t.sponsor?`<div><span>HAUPTSPONSOR</span><strong>${esc(t.sponsor.name)}</strong><small>${money(t.sponsor.pay)} / Woche · +${Math.round(t.sponsor.bonus*100)}% Bonus</small></div><div class="sponsor-badge" style="--a:${t.sponsor.accent}">${esc(t.sponsor.name.split(' ')[0])}</div>`:'<div><strong>Kein Hauptsponsor</strong></div>'}</div>
+      <div class="stack">${SPONSORS.map(s=>`<section class="card sponsor-card"><div class="sponsor-badge" style="--a:${s.accent}">${esc(s.name.split(' ')[0])}</div><div><strong>${esc(s.name)}</strong><span>Stufe ${s.tier} · ${money(s.pay)} / Woche</span><span>Bonus +${Math.round(s.bonus*100)}%</span></div><button class="small-btn ${t.sponsor?.id===s.id?'':'gold'}" data-sponsor="${s.id}">${t.sponsor?.id===s.id?'AKTIV':'VERTRAG'}</button></section>`).join('')}</div>`;
+  }
+
+  function renderStadium(){
+    const t=currentTeam(); const ups=[['capacity','Kapazität','Mehr Zuschauer'],['stands','Tribüne','Mehr Stimmung'],['lighting','Flutlicht','Abendspiele'],['catering','Catering','Mehr Umsatz'],['merch','Merch','Vereinsumsatz'],['vip','VIP','Premiumgäste'],['surface','Kunstrasen','Wetterbonus'],['fence','Banden','Sponsorplätze'],['media','Medien','News-Reichweite'],['academy','Jugendzentrum','Talentbonus']];
+    return `${pageHead('Arena','Dein Bolzplatz wird zum Street-Soccer-Hotspot',`<button class="ghost-btn" data-rename-stadium>UMBENENNEN</button>`)}
+      ${card(esc(t.stadium.name),`<div class="stadium-art"><div class="fence"></div><div class="lights"></div><div class="court"></div><div class="crowd"></div></div><div class="kpi-strip"><span><b>${t.stadium.capacity}</b><small>PLÄTZE</small></span><span><b>${t.stadium.level}</b><small>LEVEL</small></span><span><b>${money(t.budget)}</b><small>BUDGET</small></span></div>`)}
+      ${card('Ausbau',`<div class="upgrade-list">${ups.map(([k,label,desc])=>{const lvl=t.stadium.upgrades[k]||0,cost=Math.round(9000*Math.pow(1.8,lvl));return `<div class="upgrade-row"><div><strong>${label}</strong><span>${desc} · Lvl ${lvl}</span></div><b>${money(cost)}</b><button class="small-btn gold" data-upgrade="${k}">+</button></div>`}).join('')}</div>`)}
+    `;
+  }
+
+  function renderFinances(){
+    const t=currentTeam(),wages=t.roster.reduce((s,p)=>s+p.salary,0),sponsor=t.sponsor?.pay||0,stad=Math.round(t.stadium.capacity*18);
+    return `${pageHead('Finanzen','Budget, Cashflow und Vereinswirtschaft',`<button class="ghost-btn" data-export>EXPORT</button>`)}
+      <div class="kpi-strip"><span><b>${money(t.budget)}</b><small>BUDGET</small></span><span><b>${money(sponsor)}</b><small>SPONSOR/W</small></span><span><b>${money(wages)}</b><small>GEHÄLTER</small></span></div>
+      ${card('Cashflow',`<div class="finance-row"><span>Sponsor</span><b class="green-txt">+${money(sponsor)}</b></div><div class="finance-row"><span>Heimspiele</span><b class="green-txt">+${money(Math.round(t.stadium.capacity*0.75*9))}</b></div><div class="finance-row"><span>Gehälter</span><b class="red-txt">-${money(wages)}</b></div><div class="finance-row"><span>Arena</span><b class="red-txt">-${money(stad)}</b></div><div class="finance-row total"><span>Spieltag-Budget</span><b>${money(t.budget)}</b></div>`)}
+      ${card('Finanzaktionen',`<div class="action-grid"><button class="action-tile" data-credit><b>50K</b><small>KREDIT</small></button><button class="action-tile" data-page="sponsors"><b>SP</b><small>SPONSOREN</small></button><button class="action-tile" data-page="stadium"><b>+</b><small>AUSBAU</small></button><button class="action-tile" data-export><b>JSON</b><small>SAVE</small></button></div>`)}
+    `;
+  }
+
+  function renderStats(){
+    const t=currentTeam(), all=[...t.roster].sort((a,b)=>b.goals-a.goals||b.rating-a.rating);
+    return `${pageHead('Statistiken','Spieler, Form und Saisonfortschritt')}
+      <div class="kpi-strip"><span><b>${t.stats.played}</b><small>SPIELE</small></span><span><b>${t.stats.gf}</b><small>TORE</small></span><span><b>${t.stats.ga}</b><small>GEGENTORE</small></span><span><b>${t.stats.xg.toFixed(1)}</b><small>xG</small></span></div>
+      ${card('Spieler-Stats',`<div class="player-stats">${all.map(p=>`<div class="stat-row"><img src="${playerAvatar(p,t.teamColor,true)}"><div><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.rating}</span></div><b>${p.goals}</b><small>T</small><b>${p.assists}</b><small>A</small><span>${p.form}%</span></div>`).join('')}</div>`)}
+    `;
+  }
+
+  function renderDraft(){
+    return `${pageHead('Draft','Talente verpflichten und entwickeln')}
+      <div class="stack">${[['silver','SILVER',7000,2,58,70],['gold','GOLD',14000,3,68,80],['premium','PREMIUM',26000,4,76,91]].map(x=>`<section class="card draft-card"><div class="card-title"><h2>${x[1]}</h2><span class="tag">${x[3]} TALENTE</span></div><p>${money(x[2])} · Rating ${x[4]}–${x[5]}</p><button class="gold-btn wide" data-draft="${x[0]}">DRAFT ÖFFNEN</button></section>`).join('')}</div>`;
+  }
+
+  function renderCoaches(){
+    const t=currentTeam(); return `${pageHead('Coaches','Boosts für Spielplan, Form und Entwicklung')}
+      <div class="stack">${state.coaches.map(c=>`<section class="card coach-card"><div class="coach-avatar">${c.name.split(' ').map(x=>x[0]).join('')}</div><div><strong>${esc(c.name)}</strong><span>${esc(c.role)} · +${c.boost}%</span><span>${money(c.price)} Vertrag</span></div><button class="small-btn ${t.coach===c.id?'':'gold'}" data-coach="${c.id}">${t.coach===c.id?'AKTIV':'VERPFL.'}</button></section>`).join('')}</div>`;
+  }
+
+  function renderSettings(){
+    const t=currentTeam(); return `${pageHead('Einstellungen','Profile, Savegames und Spielstart')}
+      ${card('Managerprofil',`<label class="input-label">Managername<input class="text-input" id="managerName" value="${esc(state.manager)}"></label><label class="input-label">Vereinsname<input class="text-input" id="teamName" value="${esc(t.name)}"></label><label class="input-label">Arena<input class="text-input" id="stadiumName" value="${esc(t.stadium.name)}"></label><button class="gold-btn wide" data-settings-save>SPEICHERN</button>`)}
+      ${card('Spielstand',`<div class="action-grid"><button class="action-tile" data-export><b>↑</b><small>EXPORT</small></button><button class="action-tile" data-import><b>↓</b><small>IMPORT</small></button><button class="action-tile danger-tile" data-reset><b>↻</b><small>NEUES SPIEL</small></button></div>`)}
+      ${card('Über das Spiel',`<p class="muted">Street Kings: Manager · Browser Edition · Katzenelnbogen · 5er Street Soccer · Touch-first UI</p>`)}
+    `;
+  }
+
+  function renderMore(){
+    const items=[['tactics','◈','Taktik'],['league','🏆','Liga'],['sponsors','◆','Sponsoren'],['stadium','▧','Arena'],['finances','€','Finanzen'],['stats','▥','Statistiken'],['draft','✦','Draft'],['coaches','◎','Coaches'],['settings','⚙','Einstellungen']];
+    return `${pageHead('Mehr','Alle Manager-Systeme')}${card('Menü',`<div class="menu-grid">${items.map(([k,i,l])=>`<button data-page="${k}"><span>${i}</span><b>${l}</b></button>`).join('')}</div>`)}${card('Region',`<div class="region-card"><strong>Katzenelnbogen</strong><span>Aar-Einrich · Rhein-Lahn · Untertaunus</span><p>Scouting, Sponsoren und Gegner kommen aus der Region und wachsen mit deinem Verein.</p></div>`)}`;
+  }
+
+  function renderPage(){
+    const map={home:renderHome,team:renderTeam,tactics:renderTactics,league:renderLeague,games:renderGames,market:renderMarket,sponsors:renderSponsors,stadium:renderStadium,finances:renderFinances,stats:renderStats,draft:renderDraft,coaches:renderCoaches,settings:renderSettings,more:renderMore};
+    $('#view').innerHTML=(map[state.active]||renderHome)();
+  }
 
   function render(){
-    const app=$('#app'); const t=currentTeam(); const l=currentLeague();
-    app.innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><img src="${logoSvg()}"><div><h1>STREET KINGS</h1><small>MANAGER</small></div></div><nav class="nav">${navItem('home','⌂','Home')}${navItem('team','♟','Team')}${navItem('tactics','◈','Taktik')}${navItem('league','🏆','Liga')}${navItem('games','⚽','Spiele')}${navItem('market','↔','Transfermarkt')}${navItem('sponsors','◆','Sponsoren')}${navItem('stadium','▧','Stadion')}${navItem('finances','€','Finanzen')}${navItem('stats','▥','Statistiken')}${navItem('draft','✦','Draft')}${navItem('coaches','◎','Coaches')}${navItem('settings','⚙','Einstellungen')}</nav><div class="sidebar-footer"><b>Street Kings Manager</b><br>Play local. Go global.<br>Katzenelnbogen · S${state.season}</div></aside><main class="main"><header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" data-menu>☰</button><div class="club-chip"><img src="assets/crest-talblick.svg"><div><strong>${esc(t.name)}</strong><span>${esc(t.city)} · ${esc(l.name)}</span></div></div></div><div class="top-stats"><span class="chip">Saison ${state.season}</span><span class="chip">Woche ${state.week}</span><span class="chip">${dateDE(state.date)}</span><span class="chip money">${money(t.budget)}</span></div><div class="top-actions"><button class="icon-btn" data-page="finances">€</button><button class="icon-btn" data-notify>🔔</button><button class="icon-btn" data-page="settings">⚙</button></div></header><section class="content">${renderPage(state.active)}</section></main></div><div id="modalBackdrop" class="modal-backdrop"></div><div id="toast" class="toast"><strong></strong><span></span></div>`;
-    bindEvents();
-    if(state.firstRun){setTimeout(showWelcome,80);state.firstRun=false;saveState();}
+    $('#app').innerHTML=renderShell();
+    renderPage();
+    if(state.firstRun && !state.liveMatch){setTimeout(showWelcome,120);state.firstRun=false;saveState();}
   }
-  function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-  function navItem(key,ico,label){return `<button class="${state.active===key?'active':''}" data-page="${key}"><span class="ico">${ico}</span><span>${label}</span></button>`}
-  function renderPage(p){
-    const map={home:renderHome,team:renderTeam,tactics:renderTactics,league:renderLeague,games:renderGames,market:renderMarket,sponsors:renderSponsors,stadium:renderStadium,finances:renderFinances,stats:renderStats,draft:renderDraft,coaches:renderCoaches,settings:renderSettings}; return (map[p]||renderHome)();
+
+  function openModal(title,body,opts={}){
+    const root=$('#modalRoot'); if(!root)return;
+    root.innerHTML=`<div class="modal-layer ${opts.full?'full':''}" id="activeModal"><div class="modal-sheet"><div class="modal-bar"><div>${opts.kicker?`<span>${esc(opts.kicker)}</span>`:''}<strong>${title}</strong></div>${opts.lock?'':`<button class="close-btn" data-close>×</button>`}</div><div class="modal-body">${body}</div>${opts.footer??''}</div></div>`;
+    if(!opts.lock)$('#activeModal')?.addEventListener('click',e=>{if(e.target.id==='activeModal')closeModal();});
   }
-  function renderHome(){ const t=currentTeam(),l=currentLeague(),ng=nextUserGame(); const opp=ng?(ng.home===t.id?state.teams[ng.away]:state.teams[ng.home]):null; const userHome=ng?.home===t.id; const stand=standings(l); return `<div class="page-head"><div><h2>Dein Club. Deine Straße.</h2><p>Katzenelnbogen · ${l.name} · Saison ${state.season}</p></div><div class="actions"><button class="btn" data-page="team">Kader</button><button class="btn primary" data-simulate>${ng?'Nächsten Spieltag simulieren':'Saison abschließen'}</button></div></div><section class="hero"><div class="hero-content"><div class="eyebrow">Street Soccer Manager</div><h2>SMALL TOWN. BIG DREAMS.</h2><p>Baue deinen Verein aus der Region auf, entwickle Talente, verbessere den Bolzplatz und geh auf Punktejagd.</p><div class="hero-pills"><span>⚽ 5er Street Soccer</span><span>📍 ${esc(t.city)}</span><span>🏟 ${esc(t.stadium.name)}</span><span>🎯 Aufstiegssystem</span></div></div></section><div class="grid dashboard"><div class="card">${renderNextMatch(ng,opp,userHome)}</div><div class="card">${renderStandingsCard(stand,l)}</div><div class="card">${renderNewsCard()}</div></div><div style="height:14px"></div><div class="lineup-wrap"><div class="card"><div class="card-title"><h3>Aufstellung <small>(4-1)</small></h3><button class="btn" data-page="tactics">Taktik</button></div>${renderField(t.roster.slice(0,5),t)}</div><div class="card"><div class="card-title"><h3>Teamstärke</h3><span class="tag">${Math.round(teamStrength(t))} OVR</span></div>${renderTeamMetrics(t)}<div style="height:10px"></div>${renderNextFixtures(l,t)}</div></div><div style="height:14px"></div><div class="grid three"><div class="card">${renderMarketMini()}</div><div class="card">${renderStadiumMini()}</div><div class="card">${renderSponsorMini()}</div></div><div style="height:14px"></div><div class="grid four"><div class="card metric-card"><div><div class="mini-note">Kontostand</div><div class="big-number">${money(t.budget)}</div></div><span class="tag">+${Math.round((t.sponsor?.bonus||0)*100)}% Sponsor</span></div><div class="card metric-card"><div><div class="mini-note">Zuschauer</div><div class="big-number">${t.stadium.capacity}</div></div><span class="muted">Level ${t.stadium.level}</span></div><div class="card metric-card"><div><div class="mini-note">Jugend</div><div class="big-number">${t.youth}</div></div><button class="btn" data-page="draft">Scouting</button></div><div class="card metric-card"><div><div class="mini-note">Trophäen</div><div class="big-number">${t.stats.wins>0?1:0}</div></div><span class="muted">Saison ${state.season}</span></div></div><div class="footer-note">Street Kings Manager v1.0 · Katzenelnbogen · built for the streets</div>` }
-  function renderNextMatch(ng,opp,userHome){ const t=currentTeam(); if(!ng||!opp)return `<div class="empty">Keine offenen Ligaspiele. Saisonabschluss verfügbar.</div>`; return `<div class="card-title"><h3>Nächstes Spiel</h3><span class="tag blue">Spieltag ${ng.round}</span></div><div class="versus"><div class="team-side"><img src="${teamLogo( t)}"><strong>${esc(t.name)}</strong><small>${esc(t.city)}</small></div><div class="vs">VS</div><div class="team-side"><img src="${teamLogo(opp)}"><strong>${esc(opp.name)}</strong><small>${esc(opp.city)}</small></div></div><div class="form-row">${(t.form||[]).map(f=>`<span class="form-b ${f}">${f}</span>`).join('')}</div><div class="match-meta"><span>📅 ${dateDE(new Date(state.date.getTime()+7*86400000))}</span><span>📍 ${userHome?esc(t.stadium.name):esc(opp.stadium.name)}</span><span>🌙 ${pick(WEATHER).name}</span></div><div class="center-btn"><button class="btn primary" data-simulate>${userHome?'Heimspiel simulieren':'Auswärtsspiel simulieren'}</button></div>`}
-  function renderStandingsCard(stand,l){ return `<div class="card-title"><h3>Tabelle</h3><button class="btn" data-page="league">Alle</button></div><table class="table"><thead><tr><th>#</th><th>Team</th><th>Sp</th><th>TD</th><th>Pkt</th></tr></thead><tbody>${stand.slice(0,6).map((s,i)=>{const tt=state.teams[s.teamId];return `<tr class="${s.teamId===state.userTeamId?'active':''}"><td class="rank">${i+1}</td><td><div class="team-cell"><img src="${teamLogo(tt)}"><span>${esc(tt.name)}</span></div></td><td>${s.played}</td><td>${s.gd>0?'+':''}${s.gd}</td><td class="rating">${s.points}</td></tr>`}).join('')}</tbody></table>`}
-  function renderNewsCard(){return `<div class="card-title"><h3>News</h3><span class="muted">Regional</span></div><div class="news-list">${state.news.slice(0,3).map(n=>`<div class="news"><img src="${n.icon}"><div><strong>${esc(n.title)}</strong><span>${esc(n.body)}</span></div></div>`).join('')}</div>`}
-  function renderField(players,t){ const coords=[{x:50,y:15},{x:25,y:37},{x:75,y:37},{x:50,y:57},{x:50,y:83}]; return `<div class="field"><div class="center-circle"></div><div class="half-line"></div><div class="box"></div><div class="box bottom"></div>${players.map((p,i)=>`<div class="player-dot" style="left:${coords[i].x}%;top:${coords[i].y}%"><div class="avatar"><img src="${avatarSvg(p,t.teamColor)}"></div><b>${esc(p.name.split(' ')[0])} · ${p.pos} ${p.rating}</b></div>`).join('')}</div>` }
-  function renderTeamMetrics(t){const a=t.roster.slice(0,5); const vals={Offensive:avg(a,x=>x.skill.shoot),Tempo:avg(a,x=>x.skill.pace),Defensive:avg(a,x=>x.skill.def),Kombination:avg(a,x=>x.skill.pass)};return Object.entries(vals).map(([k,v])=>`<div class="metric"><span>${k}</span><strong>${Math.round(v)}</strong></div><div class="bar"><span style="width:${clamp(v,0,100)}%"></span></div>`).join('')}
-  function avg(a,fn){return a.reduce((s,x)=>s+fn(x),0)/a.length}
-  function renderNextFixtures(l,t){const games=l.schedule.filter(g=>!g.played&&(g.home===t.id||g.away===t.id)).slice(0,4);return `<div class="card-title" style="margin-top:14px"><h4>Nächste Spiele</h4></div><div class="list">${games.map(g=>{const opp=state.teams[g.home===t.id?g.away:g.home];return `<div class="list-row"><div><strong>${esc(opp.name)}</strong><small>${g.home===t.id?'Heimspiel':'Auswärts'} · Spieltag ${g.round}</small></div><div class="right"><span class="tag ${g.home===t.id?'':'blue'}">${g.home===t.id?'H':'A'}</span></div></div>`}).join('')}</div>`}
-  function renderMarketMini(){const m=state.market.slice(0,4);return `<div class="card-title"><h3>Transfermarkt</h3><button class="btn" data-page="market">Mehr</button></div><div class="list">${m.map(p=>`<div class="list-row"><div class="avatar-card" style="border:0;padding:0;background:none"><img src="${avatarSvg(p)}"><div><strong>${esc(p.name)}</strong><small>${p.pos} · ${p.age} J.</small></div></div><div class="right"><strong>${p.rating}</strong><small>${money(p.value)}</small></div></div>`).join('')}</div>`}
-  function renderStadiumMini(){const t=currentTeam();return `<div class="card-title"><h3>Stadion</h3><button class="btn" data-page="stadium">Ausbau</button></div><div class="avatar-card"><img src="assets/stadium/stadium.svg"><div><strong>${esc(t.stadium.name)}</strong><small>${t.stadium.capacity} Plätze · Level ${t.stadium.level}</small></div></div><div style="height:9px"></div><div class="bar"><span style="width:${Math.min(100,t.stadium.level*16)}%"></span></div>`}
-  function renderSponsorMini(){const t=currentTeam(),s=t.sponsor;return `<div class="card-title"><h3>Sponsor</h3><button class="btn" data-page="sponsors">Verträge</button></div><div class="avatar-card"><img src="assets/sponsors/${s?s.id:'aarwerk'}.svg"><div><strong>${s?esc(s.name):'Kein Sponsor'}</strong><small>${s?money(s.pay)+' / Woche':'Vertrag auswählen'}</small></div></div>`}
+  function closeModal(){if(state.liveMatch)return;$('#modalRoot').innerHTML='';}
 
-  function renderTeam(){const t=currentTeam(); return `<div class="page-head"><div><h2>Kader</h2><p>${t.roster.length}/12 Spieler · ${esc(t.name)}</p></div><div class="actions"><button class="btn" data-page="draft">Draft</button><button class="btn primary" data-page="market">Spieler suchen</button></div></div><div class="kpi-grid"><div class="kpi"><small>Team OVR</small><strong>${Math.round(teamStrength(t))}</strong></div><div class="kpi"><small>Kaderwert</small><strong>${money(t.roster.reduce((s,p)=>s+p.value,0))}</strong></div><div class="kpi"><small>Ø Alter</small><strong>${(t.roster.reduce((s,p)=>s+p.age,0)/t.roster.length).toFixed(1)}</strong></div><div class="kpi"><small>Tagesform</small><strong>${Math.round(t.roster.reduce((s,p)=>s+p.form,0)/t.roster.length)}%</strong></div></div><div style="height:12px"></div><div class="toolbar"><div class="tabs"><button class="tab ${state.teamTab==='overview'?'active':''}" data-teamtab="overview">Übersicht</button><button class="tab ${state.teamTab==='players'?'active':''}" data-teamtab="players">Spieler</button></div><div class="muted" style="font-size:11px">Startelf: 4 + 1 TW</div></div>${state.teamTab==='overview'?renderTeamOverview(t):renderTeamPlayers(t)}` }
-  function renderTeamOverview(t){return `<div class="grid two"><div class="card">${renderField(t.roster.slice(0,5),t)}</div><div class="card"><div class="card-title"><h3>Positionsübersicht</h3></div><div class="list">${['GK','CB','MF','LW','RW','ST'].map(pos=>{const ps=t.roster.filter(p=>p.pos===pos);return `<div class="list-row"><div><strong>${pos}</strong><small>${ps.length} Spieler</small></div><div class="right"><strong>${ps.length?Math.round(ps.reduce((s,p)=>s+p.rating,0)/ps.length):'-'}</strong></div></div>`}).join('')}</div></div></div>`}
-  function renderTeamPlayers(t){return `<div class="player-grid">${t.roster.map(p=>`<div class="player-card"><div class="player-top"><div class="player-ident"><img src="${avatarSvg(p,t.teamColor)}"><div><strong>${esc(p.name)}</strong><span>${p.pos} · ${p.age} J. · ${money(p.salary)}/Monat</span></div></div><div class="ovr">${p.rating}</div></div><div class="attrs">${attrBox('Tempo',p.skill.pace)}${attrBox('Schuss',p.skill.shoot)}${attrBox('Pass',p.skill.pass)}${attrBox('Def',p.skill.def)}</div><div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px"><button class="btn" data-player="${p.id}">Profil</button>${t.roster.indexOf(p)>=5?`<button class="btn danger" data-sell="${p.id}">Verkaufen</button>`:''}</div></div>`).join('')}</div>`}
-
-  function renderTactics(){const t=currentTeam(); const presets=[['4-1','Kompakt'],['2-2-1','Offensiv'],['1-3-1','Pressing']];return `<div class="page-head"><div><h2>Taktik</h2><p>4 Feldspieler + 1 Torwart · Spielstil steuern</p></div><div class="actions">${presets.map(x=>`<button class="btn ${state.tactic===x[0]?'primary':''}" data-tactic="${x[0]}">${x[0]} · ${x[1]}</button>`).join('')}</div></div><div class="grid two"><div class="card">${renderField(t.roster.slice(0,5),t)}</div><div class="card"><div class="card-title"><h3>Teamparameter</h3><span class="tag">${Math.round(teamStrength(t))} OVR</span></div><div class="field-group"><label>Offensive Risiko</label><input type="range" min="0" max="100" value="${state.tactic==='1-3-1'?78:state.tactic==='2-2-1'?67:53}" class="input" data-tactslider="risk"></div><div class="field-group"><label>Pressing</label><input type="range" min="0" max="100" value="${state.tactic==='1-3-1'?84:state.tactic==='2-2-1'?62:48}" class="input" data-tactslider="press"></div><div class="field-group"><label>Tempo</label><input type="range" min="0" max="100" value="${state.tactic==='2-2-1'?76:state.tactic==='1-3-1'?69:58}" class="input" data-tactslider="pace"></div><div class="list-row"><div><strong>Coach-Bonus</strong><small>${t.coach?`+${Math.round(effectiveCoachBoost(t)*10)/10}%`:'Kein Coach'}</small></div><div class="right"><button class="btn" data-page="coaches">Coach</button></div></div></div></div>`}
-
-  function renderLeague(){const l=currentLeague(); const stand=standings(l); return `<div class="page-head"><div><h2>Liga</h2><p>${esc(l.name)} · ${l.teams.length} Clubs · Auf- und Abstieg</p></div><div class="actions"><button class="btn" data-page="games">Spielplan</button></div></div><div class="toolbar"><div class="tabs"><button class="tab ${state.leagueTab==='table'?'active':''}" data-leaguetab="table">Tabelle</button><button class="tab ${state.leagueTab==='schedule'?'active':''}" data-leaguetab="schedule">Spielplan</button><button class="tab ${state.leagueTab==='teams'?'active':''}" data-leaguetab="teams">Teams</button></div><span class="tag">Top 2 ↑ · Bottom 2 ↓</span></div>${state.leagueTab==='table'?renderFullStandings(l,stand):state.leagueTab==='schedule'?renderSchedule(l):renderTeamsList(l)}`}
-  function renderFullStandings(l,stand){return `<div class="card"><table class="table"><thead><tr><th>#</th><th>Team</th><th>Sp</th><th>S</th><th>U</th><th>N</th><th>TD</th><th>Pkt</th></tr></thead><tbody>${stand.map((s,i)=>{const t=state.teams[s.teamId];return `<tr class="${s.teamId===state.userTeamId?'active':''}"><td>${i+1}</td><td><div class="team-cell"><img src="${teamLogo(t)}"><span>${esc(t.name)} <small class="muted">${esc(t.city)}</small></span></div></td><td>${s.played}</td><td>${s.wins}</td><td>${s.draws}</td><td>${s.losses}</td><td>${s.gd>0?'+':''}${s.gd}</td><td class="rating">${s.points}</td></tr>`}).join('')}</tbody></table></div>`}
-  function renderSchedule(l){const games=l.schedule.filter(g=>g.round>=state.week-1&&g.round<=state.week+5).slice(0,40);return `<div class="card"><div class="list">${games.map(g=>{const h=state.teams[g.home],a=state.teams[g.away];return `<div class="list-row"><div><strong>${esc(h.name)} vs ${esc(a.name)}</strong><small>Spieltag ${g.round}${g.played?' · '+g.result.hg+':'+g.result.ag:' · offen'}</small></div><div class="right"><span class="tag ${g.played?'':'blue'}">${g.played?'Fertig':'Geplant'}</span></div></div>`}).join('')}</div></div>`}
-  function renderTeamsList(l){return `<div class="grid three">${l.teams.map(id=>{const t=state.teams[id];return `<div class="card"><div class="avatar-card"><img src="${teamLogo(t)}"><div><strong>${esc(t.name)}</strong><small>${esc(t.city)} · ${t.baseQuality} OVR</small></div></div><div style="height:9px"></div>${renderTeamMetricsMini(t)}</div>`}).join('')}</div>`}
-  function renderTeamMetricsMini(t){const v=Math.round(teamStrength(t));return `<div class="metric"><span>Stärke</span><strong>${v}</strong></div><div class="bar"><span style="width:${v}%"></span></div>`}
-
-  function renderGames(){const l=currentLeague(),ng=nextUserGame();return `<div class="page-head"><div><h2>Spiele</h2><p>Spieltag für Spieltag steuern · Wetter, Form, Coach und Heimvorteil fließen ein</p></div><div class="actions"><button class="btn primary" data-simulate>${ng?'Nächsten Spieltag simulieren':'Saison abschließen'}</button></div></div><div class="grid two"><div class="card">${ng?renderNextMatch(ng,state.teams[ng.home===currentTeam().id?ng.away:ng.home],ng.home===currentTeam().id):'<div class="empty">Keine offenen Spiele.</div>'}</div><div class="card"><div class="card-title"><h3>Simulation</h3><span class="tag gold">Real-Time Ready</span></div><div class="list-row"><div><strong>Form</strong><small>Teamform der letzten 5 Spiele</small></div><div class="right">${currentTeam().form.join(' · ')}</div></div><div class="list-row"><div><strong>Coach</strong><small>80–100% der Basissteigerung</small></div><div class="right">${currentTeam().coach?`+${Math.round(effectiveCoachBoost(currentTeam())*10)/10}%`:'–'}</div></div><div class="list-row"><div><strong>Wetter</strong><small>Leichter Einfluss auf Teamleistung</small></div><div class="right">${pick(WEATHER).icon}</div></div><div class="list-row"><div><strong>Heimvorteil</strong><small>Heimteam +5%</small></div><div class="right"><span class="tag">+5%</span></div></div></div></div><div style="height:12px"></div><div class="card"><div class="card-title"><h3>Ergebnisse</h3><span class="muted">Letzte 8 Ligaspiele</span></div><div class="list">${l.schedule.filter(g=>g.played&& (g.home===currentTeam().id||g.away===currentTeam().id)).slice(-8).reverse().map(g=>{const opp=state.teams[g.home===currentTeam().id?g.away:g.home];return `<div class="list-row"><div><strong>${esc(opp.name)}</strong><small>Spieltag ${g.round} · ${g.result.weather}</small></div><div class="right"><strong>${g.home===currentTeam().id?g.result.hg:g.result.ag}:${g.home===currentTeam().id?g.result.ag:g.result.hg}</strong><small>${g.home===currentTeam().id?'Heim':'Auswärts'}</small></div></div>`}).join('')||'<div class="empty">Noch keine Ergebnisse.</div>'}</div></div>`}
-
-  function renderMarket(){const list=state.market.filter(p=>state.marketFilter==='all'||p.pos===state.marketFilter).sort((a,b)=>b.rating-a.rating); return `<div class="page-head"><div><h2>Transfermarkt</h2><p>Spieler kaufen, verkaufen und Kader entwickeln</p></div><div class="actions"><button class="btn" data-page="draft">Draft</button><button class="btn" data-market-refresh>Markt aktualisieren</button></div></div><div class="toolbar"><div class="tabs">${['all','GK','CB','MF','LW','RW','ST'].map(x=>`<button class="tab ${state.marketFilter===x?'active':''}" data-marketfilter="${x}">${x==='all'?'Alle':x}</button>`).join('')}</div><span class="tag">Budget ${money(currentTeam().budget)}</span></div><div class="player-grid">${list.map(p=>`<div class="player-card"><div class="player-top"><div class="player-ident"><img src="${avatarSvg(p)}"><div><strong>${esc(p.name)}</strong><span>${p.pos} · ${p.age} J.</span></div></div><div class="ovr">${p.rating}</div></div><div class="attrs">${attrBox('Tempo',p.skill.pace)}${attrBox('Schuss',p.skill.shoot)}${attrBox('Pass',p.skill.pass)}${attrBox('Def',p.skill.def)}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><span class="muted" style="font-size:10px">${money(p.value)}</span><button class="btn primary" data-buy="${p.id}">Kaufen</button></div></div>`).join('')}</div>`}
-
-  function renderSponsors(){return `<div class="page-head"><div><h2>Sponsoren</h2><p>Regionale Partner · Wochenbudget · Bonus auf Einnahmen</p></div><span class="tag">Aktuell: ${currentTeam().sponsor?esc(currentTeam().sponsor.name):'kein Vertrag'}</span></div><div class="grid three">${SPONSORS.map(s=>`<div class="card"><div class="avatar-card"><img src="assets/sponsors/${s.id}.svg"><div><strong>${esc(s.name)}</strong><small>Stufe ${s.tier} · ${money(s.pay)} / Woche</small></div></div><div style="height:10px"></div><div class="metric"><span>Bonus</span><strong>+${Math.round(s.bonus*100)}%</strong></div><div style="height:8px"></div><button class="btn ${currentTeam().sponsor?.id===s.id?'':'primary'}" data-sponsor="${s.id}">${currentTeam().sponsor?.id===s.id?'Aktiv':'Vertrag anbieten'}</button></div>`).join('')}</div>`}
-  function renderStadium(){const t=currentTeam();const ups=[['capacity','Kapazität'],['stands','Tribüne'],['lighting','Flutlicht'],['catering','Catering'],['merch','Merchandise'],['vip','VIP-Bereich'],['surface','Kunstrasen'],['fence','Banden'],['media','Medien',],['academy','Jugendzentrum']];return `<div class="page-head"><div><h2>Stadion</h2><p>${esc(t.stadium.name)} · Ausbaukosten steigen exponentiell</p></div><button class="btn" data-rename-stadium>Umbenennen</button></div><div class="grid two"><div class="card"><img src="assets/stadium/stadium.svg" style="width:100%;max-height:290px;object-fit:cover;border-radius:12px;image-rendering:pixelated"><div style="height:10px"></div><div class="kpi-grid"><div class="kpi"><small>Kapazität</small><strong>${t.stadium.capacity}</strong></div><div class="kpi"><small>Level</small><strong>${t.stadium.level}</strong></div><div class="kpi"><small>Monat</small><strong>${money(-Math.round(t.stadium.capacity*18))}</strong></div><div class="kpi"><small>Steuer</small><strong>${money(-Math.round(t.stadium.capacity*1.4))}</strong></div></div></div><div class="card"><div class="list">${ups.map(([k,label])=>{const lvl=t.stadium.upgrades[k]||0,cost=Math.round(9000*Math.pow(2,lvl));return `<div class="list-row"><div><strong>${label}</strong><small>Level ${lvl} · ${money(cost)}</small></div><div class="right"><button class="btn" data-upgrade="${k}">Ausbauen</button></div></div>`}).join('')}</div></div></div>`}
-  function renderFinances(){const t=currentTeam();const wages=t.roster.reduce((s,p)=>s+p.salary,0);const stadiumCosts=Math.round(t.stadium.capacity*18);const sponsor=t.sponsor?.pay||0;return `<div class="page-head"><div><h2>Finanzen</h2><p>Budget, Gehälter, Spieltagseinnahmen und Sponsorengeld</p></div><button class="btn" data-export>Save exportieren</button></div><div class="kpi-grid"><div class="kpi"><small>Kontostand</small><strong>${money(t.budget)}</strong></div><div class="kpi"><small>Gehälter / Monat</small><strong>${money(wages)}</strong></div><div class="kpi"><small>Sponsor / Woche</small><strong>${money(sponsor)}</strong></div><div class="kpi"><small>Stadionkosten</small><strong>${money(stadiumCosts)}</strong></div></div><div style="height:12px"></div><div class="grid two"><div class="card"><div class="card-title"><h3>Cashflow</h3></div><div class="list"><div class="list-row"><div><strong>Sponsor</strong><small>Wöchentliche Zahlung</small></div><div class="right up">+${money(sponsor)}</div></div><div class="list-row"><div><strong>Tickets</strong><small>Ø pro Heimspiel</small></div><div class="right up">+${money(Math.round(t.stadium.capacity*0.8*9))}</div></div><div class="list-row"><div><strong>Gehälter</strong><small>Monatlich</small></div><div class="right down">-${money(wages)}</div></div><div class="list-row"><div><strong>Stadionbetrieb</strong><small>Monatlich</small></div><div class="right down">-${money(stadiumCosts)}</div></div></div></div><div class="card"><div class="card-title"><h3>Wirtschaftslogik</h3></div><div class="list-row"><div><strong>Ligaprämie</strong><small>Siege bringen Extra-Budget</small></div><div class="right">+${money(5000)}</div></div><div class="list-row"><div><strong>Steuer</strong><small>Skaliert mit Stadiongröße</small></div><div class="right">${money(Math.round(t.stadium.capacity*.5))}</div></div><div class="list-row"><div><strong>Kredit</strong><small>Für große Ausbauten</small></div><div class="right"><button class="btn" data-credit>Kredit</button></div></div></div></div>`}
-  function renderStats(){const t=currentTeam(),all=t.roster.slice().sort((a,b)=>b.goals-a.goals);return `<div class="page-head"><div><h2>Statistiken</h2><p>Spieler- und Teamperformance über die Saison</p></div><span class="tag">${t.stats.wins} Siege · ${t.stats.goals||0} Team-Tore</span></div><div class="kpi-grid"><div class="kpi"><small>Spiele</small><strong>${t.stats.played}</strong></div><div class="kpi"><small>Siege</small><strong>${t.stats.wins}</strong></div><div class="kpi"><small>Tore</small><strong>${t.stats.gf}</strong></div><div class="kpi"><small>Gegentore</small><strong>${t.stats.ga}</strong></div></div><div style="height:12px"></div><div class="card"><table class="table"><thead><tr><th>Spieler</th><th>Pos</th><th>Rating</th><th>Sp</th><th>Tore</th><th>Assists</th><th>Form</th></tr></thead><tbody>${all.map(p=>`<tr><td><div class="team-cell"><img src="${avatarSvg(p,t.teamColor)}"><span>${esc(p.name)}</span></div></td><td>${p.pos}</td><td>${p.rating}</td><td>${p.games}</td><td>${p.goals}</td><td>${p.assists}</td><td>${p.form}%</td></tr>`).join('')}</tbody></table></div>`}
-  function renderDraft(){return `<div class="page-head"><div><h2>Draft</h2><p>Talente ziehen und Kader aufbauen</p></div><span class="tag gold">Kader ${currentTeam().roster.length}/12</span></div><div class="grid three">${[['silver','Silver','2 Talente','€ 7.000'],['gold','Gold','3 Talente','€ 14.000'],['premium','Premium','4 Talente','€ 26.000']].map(x=>`<div class="card"><div class="card-title"><h3>${x[1]}</h3><span class="tag">${x[2]}</span></div><p class="muted" style="font-size:11px">${x[3]} · Rating-Band passend zur Liga</p><button class="btn primary" data-draft="${x[0]}">Draft öffnen</button></div>`).join('')}</div>`}
-  function renderCoaches(){return `<div class="page-head"><div><h2>Coaches</h2><p>5–8% Boost, Tagesform und Ein-Saison-Verträge</p></div>${currentTeam().coach?'<button class="btn danger" data-firecoach>Coach entlassen</button>':''}</div><div class="grid three">${state.coaches.map(c=>`<div class="card"><div class="avatar-card"><img src="assets/players/coach.svg"><div><strong>${esc(c.name)}</strong><small>${c.role} · Stufe ${c.league}</small></div></div><div style="height:9px"></div><div class="metric"><span>Boost</span><strong>+${c.boost}%</strong></div><div class="metric"><span>Vertrag</span><strong>${money(c.price)}</strong></div><div style="height:10px"></div><button class="btn ${currentTeam().coach===c.id?'':'primary'}" data-coach="${c.id}">${currentTeam().coach===c.id?'Aktiv':'Verpflichten'}</button></div>`).join('')}</div>`}
-  function renderSettings(){return `<div class="page-head"><div><h2>Einstellungen</h2><p>Speicherstand und Managerprofil</p></div></div><div class="grid two"><div class="card"><div class="field-group"><label>Managername</label><input class="input" id="managerName" value="${esc(state.manager)}"></div><div class="field-group"><label>Vereinsname</label><input class="input" id="teamName" value="${esc(currentTeam().name)}"></div><div class="field-group"><label>Stadionname</label><input class="input" id="stadiumName" value="${esc(currentTeam().stadium.name)}"></div><button class="btn primary" data-settings-save>Änderungen speichern</button></div><div class="card"><div class="list"><div class="list-row"><div><strong>Save exportieren</strong><small>JSON-Datei für Backup</small></div><button class="btn" data-export>Export</button></div><div class="list-row"><div><strong>Save importieren</strong><small>Lokalen JSON-Spielstand laden</small></div><button class="btn" data-import>Import</button></div><div class="list-row"><div><strong>Neues Spiel</strong><small>Alles lokal zurücksetzen</small></div><button class="btn danger" data-reset>Reset</button></div></div></div></div>`}
-  function teamLogo(t){return t.id===state.userTeamId?'assets/crest-talblick.svg':`data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" shape-rendering="crispEdges"><rect width="64" height="64" rx="14" fill="#0c171e"/><path d="M32 6 53 15v18c0 13-8 20-21 26C19 53 11 46 11 33V15Z" fill="${t.teamColor}"/><rect x="18" y="22" width="28" height="8" fill="#071016"/><rect x="28" y="17" width="8" height="18" fill="#071016"/></svg>`)}`}
-  function bindEvents(){
-    $$('[data-page]').forEach(b=>b.onclick=()=>switchPage(b.dataset.page));
-    $('[data-menu]')?.addEventListener('click',toggleSidebar);
-    $('[data-simulate]')?.addEventListener('click',simulateNext);
-    $('[data-notify]')?.addEventListener('click',()=>openModal('News',state.news.map(n=>`<div class="news" style="margin-bottom:8px"><img src="${n.icon}"><div><strong>${esc(n.title)}</strong><span>${esc(n.body)}</span></div></div>`).join('')));
-    $$('[data-teamtab]').forEach(b=>b.onclick=()=>{state.teamTab=b.dataset.teamtab;render()});
-    $$('[data-leaguetab]').forEach(b=>b.onclick=()=>{state.leagueTab=b.dataset.leaguetab;render()});
-    $$('[data-marketfilter]').forEach(b=>b.onclick=()=>{state.marketFilter=b.dataset.marketfilter;render()});
-    $('[data-market-refresh]')?.addEventListener('click',()=>{state.market=generateMarket(18);toast('Transfermarkt aktualisiert','Neue Spieler sind verfügbar.');render()});
-    $$('[data-buy]').forEach(b=>b.onclick=()=>buyPlayer(b.dataset.buy));
-    $$('[data-sell]').forEach(b=>b.onclick=()=>sellPlayer(b.dataset.sell));
-    $$('[data-sponsor]').forEach(b=>b.onclick=()=>hireSponsor(b.dataset.sponsor));
-    $$('[data-upgrade]').forEach(b=>b.onclick=()=>upgradeStadium(b.dataset.upgrade));
-    $('[data-rename-stadium]')?.addEventListener('click',()=>{openModal('Stadion umbenennen',`<div class="field-group"><label>Neuer Name</label><input class="input" id="newStad" value="${esc(currentTeam().stadium.name)}"></div><div class="mini-note">Gebühr: € 5.000</div>`,{footer:false}); const m=$('#modalBackdrop'); m.querySelector('.modal-body').insertAdjacentHTML('afterend','<div class="modal-foot"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="saveStad">Umbenennen</button></div>');m.querySelector('[data-close]').onclick=closeModal;m.querySelector('#saveStad').onclick=()=>{const t=currentTeam();const v=$('#newStad',m).value.trim();if(!v)return;if(t.budget<5000){toast('Zu wenig Budget');return;}t.budget-=5000;t.stadium.name=v;closeModal();saveState();render();}});
-    $$('[data-tactic]').forEach(b=>b.onclick=()=>{state.tactic=b.dataset.tactic;toast('Taktik geändert',state.tactic);render()});
-    $$('[data-draft]').forEach(b=>b.onclick=()=>draft(b.dataset.draft));
-    $$('[data-coach]').forEach(b=>b.onclick=()=>hireCoach(b.dataset.coach));
-    $('[data-firecoach]')?.addEventListener('click',fireCoach);
-    $$('[data-player]').forEach(b=>b.onclick=()=>{const p=currentTeam().roster.find(x=>x.id===b.dataset.player); if(!p)return;openModal(p.name,`<div class="avatar-card"><img src="${avatarSvg(p,currentTeam().teamColor)}"><div><strong>${p.pos} · ${p.rating} OVR</strong><small>${p.age} Jahre · Form ${p.form}%</small></div></div><div style="height:10px"></div><div class="attrs">${attrBox('Tempo',p.skill.pace)}${attrBox('Schuss',p.skill.shoot)}${attrBox('Pass',p.skill.pass)}${attrBox('Def',p.skill.def)}${attrBox('Kontrolle',p.skill.control)}${attrBox('Leadership',p.skill.lead)}</div>`)});
-    $$('[data-draft-index]').forEach(b=>{b.onclick=()=>{const idx=Number(b.dataset.draftIndex); const cards=$$('.player-card',$('#modalBackdrop .modal-body')); const card=cards[idx]; const p=state._draftPlayers?.[idx]; if(p)chooseDraft(p)}});
-    $('[data-settings-save]')?.addEventListener('click',()=>{state.manager=$('#managerName').value.trim()||'Manager';currentTeam().name=$('#teamName').value.trim()||currentTeam().name;currentTeam().stadium.name=$('#stadiumName').value.trim()||currentTeam().stadium.name;saveState();toast('Gespeichert','Managerprofil aktualisiert.');render()});
-    $('[data-export]')?.addEventListener('click',exportSave); $('[data-import]')?.addEventListener('click',importSave); $('[data-reset]')?.addEventListener('click',()=>{if(confirm('Wirklich neuen Spielstand starten?'))resetState()});
-    $$('[data-credit]').forEach(b=>b.onclick=()=>{const t=currentTeam();t.budget+=50000;toast('Liga-Kredit','€ 50.000 wurden aufgenommen.');saveState();render()});
-    $('#modalBackdrop')?.addEventListener('click',e=>{if(e.target.id==='modalBackdrop')closeModal()});
-  }
   function showWelcome(){
-    openModal('WILLKOMMEN BEI STREET KINGS MANAGER',`<div class="modal-hero"><h3>Katzenelnbogen. Deine Straße. Dein Club.</h3></div><p style="color:#b4c6ce;line-height:1.6">Übernimm einen Street-Soccer-Club aus der Region und entwickle ihn von der Kreisliga bis an die Spitze. 4 Feldspieler + 1 Torwart, Transfermarkt, Coaches, Sponsoren, Stadionausbau, Draft, Finanzen, Form, Wetter und Auf-/Abstieg.</p><div class="field-group"><label>Managername</label><input class="input" id="welcomeManager" value="${esc(state.manager)}"></div><div class="field-group"><label>Clubname</label><input class="input" id="welcomeTeam" value="${esc(currentTeam().name)}"></div><div class="checkbox"><input id="welcomeSkip" type="checkbox"> <label for="welcomeSkip">Willkommensfenster später nicht mehr anzeigen</label></div>`,{footer:false});
-    const b=$('#modalBackdrop');b.querySelector('.modal-body').insertAdjacentHTML('afterend','<div class="modal-foot"><button class="btn primary" id="welcomeGo">LOS GEHT’S!</button></div>'); b.querySelector('#welcomeGo').onclick=()=>{state.manager=$('#welcomeManager',b).value.trim()||'Manager';currentTeam().name=$('#welcomeTeam',b).value.trim()||currentTeam().name;closeModal();saveState();render();toast('Willkommen',`Viel Erfolg, ${esc(state.manager)}.`)};
+    const t=currentTeam();
+    openModal('WILLKOMMEN BEI STREET KINGS',`<div class="welcome-art"><div class="crown">♛</div><strong>MANAGE · BUILD · PLAY</strong><span>Katzenelnbogen</span></div><p class="modal-copy">Übernimm deinen eigenen 5er-Street-Soccer-Club. 4 Feldspieler + 1 Torwart. Spiele 2-Minuten-Live-Simulationen, handle Transfers, Sponsoren, Arena, Draft und Finanzen.</p><label class="input-label">Managername<input class="text-input" id="welcomeManager" value="${esc(state.manager)}"></label><label class="input-label">Vereinsname<input class="text-input" id="welcomeTeam" value="${esc(t.name)}"></label><label class="check-row"><input id="welcomeRemember" type="checkbox"> Beim nächsten Start nicht mehr anzeigen</label><button class="gold-btn wide" data-welcome>LOS GEHT'S</button>`,{lock:true,kicker:'STREET KINGS · MOBILE'});
   }
-  function exportSave(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='street-kings-save.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);}
-  function importSave(){const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=()=>{const file=input.files?.[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);localStorage.setItem('streetKingsSave',JSON.stringify(d));location.reload()}catch(e){toast('Import fehlgeschlagen','Die JSON-Datei ist ungültig.')}};r.readAsText(file)};input.click();}
 
-  // Patch draft click storage cleanly.
-  const _draft=draft;
-  draft=function(type){const t=currentTeam(); const cfg={silver:{cost:7000,n:2,min:58,max:70},gold:{cost:14000,n:3,min:68,max:80},premium:{cost:26000,n:4,min:76,max:91}}[type]; if(t.budget<cfg.cost){toast('Draft nicht möglich','Budget reicht nicht.');return;} t.budget-=cfg.cost; const picks=[]; for(let i=0;i<cfg.n;i++){const p=makePlayer(900+i,t.teamColor,pick(['CB','MF','LW','RW','ST']),cfg.min+Math.random()*(cfg.max-cfg.min));p.value=Math.round(p.value*.6);p.salary=Math.round(p.salary*.8);p.draft=true;picks.push(p)}state._draftPlayers=picks;openModal(`Draft – ${type.toUpperCase()}`,renderDraftModal(picks));saveState();};
+  function openPlayer(id){
+    const p=currentTeam().roster.find(x=>x.id===id)||state.market.find(x=>x.id===id); if(!p)return;
+    openModal(esc(p.name),`<div class="player-modal"><img src="${playerAvatar(p,p.teamColor)}"><div><span>${marketLabel(p.pos)} · ${p.age} J.</span><strong>${p.rating} OVR</strong><p>Form ${p.form}% · Marktwert ${money(p.value)}</p></div></div><div class="attrs-grid">${Object.entries({Tempo:p.skill.pace,Schuss:p.skill.shoot,Pass:p.skill.pass,Def:p.skill.def,Kontrolle:p.skill.control,Mental:p.skill.lead}).map(([k,v])=>`<div><b>${v}</b><span>${k}</span></div>`).join('')}</div>`,{kicker:'SPIELERPROFIL'});
+  }
 
-  initState(); render();
+  function addFriendly(){
+    const t=currentTeam(), candidates=Object.values(state.teams).filter(x=>x.id!==t.id);
+    const body=`<p class="modal-copy">Wähle einen Gegner aus der Region. Freundschaftsspiele verändern die Ligatabelle nicht, bringen aber Einnahmen und Form.</p><select class="text-input" id="friendlyOpp">${candidates.map(x=>`<option value="${x.id}">${esc(x.name)} · ${esc(x.city)}</option>`).join('')}</select><label class="check-row"><input id="friendlyHome" type="checkbox" checked> Heimspiel</label><button class="gold-btn wide" data-create-friendly>SPIEL ANSETZEN</button>`;
+    openModal('SPIEL HINZUFÜGEN',body,{kicker:'FREUNDSCHAFT'});
+  }
+
+  function createFriendly(){
+    const oppId=$('#friendlyOpp')?.value, home=$('#friendlyHome')?.checked; if(!oppId)return;
+    const t=currentTeam(); const game={id:uid('f'),home:home?t.id:oppId,away:home?oppId:t.id,round:0,played:false,result:null,type:'Freundschaft',createdAt:Date.now()};
+    state.friendlies.push(game); addNews('Freundschaftsspiel angesetzt',`${state.teams[game.home].name} vs. ${state.teams[game.away].name}`,'games'); saveState(); closeModal(); state.active='games'; render(); toast('Spiel angesetzt','Der Termin liegt im Spiele-Menü.');
+  }
+
+  function simulateButton(){
+    if(state.liveMatch)return;
+    const leagueGame=nextUserGame();
+    if(leagueGame){startLiveMatch(leagueGame,'league');return;}
+    const friendly=state.friendlies.find(g=>!g.played); if(friendly){startLiveMatch(friendly,'friendly');return;}
+    finishSeason();
+  }
+
+  function finishSeason(){
+    const l=currentLeague(), sorted=standings(l), idx=sorted.findIndex(x=>x.teamId===state.userTeamId); let text=`Platz ${idx+1}.`;
+    if(idx<=1 && l.level>1){moveLeague(l.level,l.level-1);text+=' Aufstieg!';currentTeam().titles += idx===0?1:0;}
+    else if(idx>=sorted.length-2 && l.level<3){moveLeague(l.level,l.level+1);text+=' Abstieg.';}
+    state.season++;state.week=1;state.date=new Date(state.date.getTime()+35*86400000);
+    Object.values(state.leagues).forEach(ll=>{Object.keys(ll.standings).forEach(id=>ll.standings[id]={teamId:id,played:0,wins:0,draws:0,losses:0,gf:0,ga:0,gd:0,points:0});ll.schedule=roundRobin(ll.teams);});
+    currentTeam().roster.forEach(p=>{if(p.age<23 && Math.random()<.65)p.rating=clamp(p.rating+1,45,97);p.form=clamp(p.form+Math.round(Math.random()*8-4),55,99);});
+    addNews('Neue Saison',text,'trophy');saveState();render();toast('Saison abgeschlossen',text);
+  }
+
+  function moveLeague(from,to){
+    const a=state.leagues['L'+from], b=state.leagues['L'+to]; a.teams=a.teams.filter(id=>id!==state.userTeamId); if(!b.teams.includes(state.userTeamId))b.teams[b.teams.length-1] && b.teams.push(state.userTeamId); const excess=a.teams[a.teams.length-1]; if(excess && !b.teams.includes(excess))b.teams[b.teams.length-1]=excess;
+  }
+
+  function matchStrengthSnapshot(home,away,weather){
+    const h=teamStrength(home)*(weather?.mult||1)*(home.id===state.userTeamId?1.06:1); const a=teamStrength(away)*(weather?.mult||1); return {h,a};
+  }
+
+  function liveClock(ms){const s=Math.max(0,Math.floor(ms/1000));return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
+
+  function startLiveMatch(game,type){
+    const H=state.teams[game.home], A=state.teams[game.away], weather=pick(WEATHER); if(!H||!A)return;
+    state.liveMatch={gameId:game.id,type,home:H.id,away:A.id,hg:0,ag:0,weather,started:Date.now(),elapsed:0,duration:120000,nextEvent:1200,events:[{t:0,text:`Anstoß! ${weather.icon} ${weather.name}`,kind:'start'}],possession:50,shotsH:0,shotsA:0};
+    renderLiveMatch();
+    clearInterval(window.__liveTimer); clearInterval(window.__liveEventTimer);
+    window.__liveTimer=setInterval(liveTick,1000);
+    window.__liveEventTimer=setTimeout(liveEventTick,1000);
+  }
+
+  function liveTick(){
+    if(!state.liveMatch){clearInterval(window.__liveTimer);return;}
+    state.liveMatch.elapsed=Date.now()-state.liveMatch.started;
+    updateLiveDOM();
+    if(state.liveMatch.elapsed>=state.liveMatch.duration)finishLiveMatch();
+  }
+
+  function liveEventTick(){
+    const lm=state.liveMatch; if(!lm)return;
+    const remain=lm.duration-lm.elapsed; if(remain<=0)return;
+    createLiveEvent();
+    const delay=2600+Math.random()*4200;
+    clearTimeout(window.__liveEventTimer); window.__liveEventTimer=setTimeout(liveEventTick,delay);
+  }
+
+  function createLiveEvent(){
+    const lm=state.liveMatch,H=state.teams[lm.home],A=state.teams[lm.away],s=matchStrengthSnapshot(H,A,lm.weather), diff=s.h-s.a;
+    const attackHome=Math.max(0.25,0.5+diff/170+(state.tactics.risk-50)/350);
+    const homeGets=Math.random()<attackHome;
+    const team=homeGets?H:A, opp=homeGets?A:H;
+    const r=Math.random();
+    lm.possession=clamp(lm.possession+(homeGets?Math.random()*8:-Math.random()*8),25,75);
+    let text='',kind='neutral';
+    if(r<0.055){
+      if(homeGets)lm.hg++;else lm.ag++;
+      const scorers=team.roster.filter(p=>['ST','LW','RW','MF'].includes(p.pos)); const p=pick(scorers.length?scorers:team.roster);
+      if(p){p.goals++;p.form=clamp(p.form+3,50,100);}
+      text=`TOR! ${p?.name||'Angreifer'} trifft! ${lm.hg}:${lm.ag}`; kind='goal';
+      addNews('LIVE-Tor',`${team.name}: ${p?.name||'Treffer'} · ${lm.hg}:${lm.ag}`,'ball');
+    }else if(r<0.16){lm[homeGets?'shotsH':'shotsA']++;text=`Chance für ${team.name}! Schuss aufs Tor.`;kind='chance';}
+    else if(r<0.24){text=`Parade! ${opp.name} hält den Druck aus.`;kind='save';}
+    else if(r<0.31){text=`Gelbe Karte für ${team.name}.`;kind='card';team.roster[Math.floor(Math.random()*team.roster.length)].yellow++;}
+    else if(r<0.43){text=`${team.name} mit starkem Pressing.`;kind='press';}
+    else if(r<0.53){text=`Taktik greift: ${team.name} verlagert das Spiel.`;kind='tactic';}
+    else{text=`${team.name}: Ballbesitzphase im letzten Drittel.`;kind='neutral';}
+    lm.events.unshift({t:Math.round(lm.elapsed/1000),text,kind}); lm.events=lm.events.slice(0,16);
+    updateLiveDOM();
+  }
+
+  function renderLiveMatch(){
+    const lm=state.liveMatch,H=state.teams[lm.home],A=state.teams[lm.away];
+    openModal('LIVE SIMULATION',`<div class="live-score"><div><img src="${crest(H)}"><strong>${esc(H.name)}</strong></div><div><span class="live-time" id="liveTime">00:00</span><b id="liveScore">${lm.hg} : ${lm.ag}</b><small>${lm.weather.icon} ${esc(lm.weather.name)}</small></div><div><img src="${crest(A)}"><strong>${esc(A.name)}</strong></div></div><div class="live-field"><div class="field-mark center"></div><div class="field-mark line"></div><div class="live-ball" id="liveBall"></div><div class="live-token home-t1"></div><div class="live-token home-t2"></div><div class="live-token home-t3"></div><div class="live-token away-t1"></div><div class="live-token away-t2"></div><div class="live-token away-t3"></div></div><div class="live-status"><div><span>Ballbesitz</span><b id="livePoss">${Math.round(lm.possession)}% · ${100-Math.round(lm.possession)}%</b></div><div><span>Schüsse</span><b id="liveShots">${lm.shotsH} · ${lm.shotsA}</b></div></div><div class="live-feed" id="liveFeed">${lm.events.map(e=>`<article class="event ${e.kind}"><small>${Math.floor(e.t/60)}:${String(e.t%60).padStart(2,'0')}</small><span>${esc(e.text)}</span></article>`).join('')}</div><div class="live-progress"><div><span>Simulation läuft…</span><b id="liveRemaining">02:00</b></div><i><em id="liveBar"></em></i></div>`,{lock:true,kicker:'VORSTAND · LIVEBEOBACHTUNG'});
+    updateLiveDOM();
+  }
+
+  function updateLiveDOM(){
+    const lm=state.liveMatch;if(!lm)return; const left=Math.max(0,lm.duration-lm.elapsed);
+    const time=$('#liveTime'),score=$('#liveScore'),rem=$('#liveRemaining'),bar=$('#liveBar'),poss=$('#livePoss'),shots=$('#liveShots'),feed=$('#liveFeed');
+    if(time)time.textContent=liveClock(lm.elapsed); if(score)score.textContent=`${lm.hg} : ${lm.ag}`; if(rem)rem.textContent=liveClock(left); if(bar)bar.style.width=`${clamp(lm.elapsed/lm.duration*100,0,100)}%`; if(poss)poss.textContent=`${Math.round(lm.possession)}% · ${100-Math.round(lm.possession)}%`; if(shots)shots.textContent=`${lm.shotsH} · ${lm.shotsA}`;
+    if(feed)feed.innerHTML=lm.events.map(e=>`<article class="event ${e.kind}"><small>${Math.floor(e.t/60)}:${String(e.t%60).padStart(2,'0')}</small><span>${esc(e.text)}</span></article>`).join('');
+    const ball=$('#liveBall'), tokens=$$('.live-token'); tokens.forEach((el,i)=>{const base=[['home-t1',27,65],['home-t2',40,48],['home-t3',58,45],['away-t1',73,35],['away-t2',58,55],['away-t3',42,58]][i]; if(base)el.style.transform=`translate(${Math.sin((lm.elapsed/800)+i)*8}px,${Math.cos((lm.elapsed/700)+i)*5}px)`;}); if(ball)ball.style.transform=`translate(${Math.sin(lm.elapsed/420)*55}px,${Math.cos(lm.elapsed/520)*35}px)`;
+  }
+
+  function finishLiveMatch(){
+    const lm=state.liveMatch;if(!lm)return; clearInterval(window.__liveTimer);clearTimeout(window.__liveEventTimer);
+    const game = findGame(lm.gameId,lm.type), H=state.teams[lm.home], A=state.teams[lm.away];
+    if(!game){state.liveMatch=null;closeModal();render();return;}
+    applyFinalResult(game,lm.hg,lm.ag,lm.weather,lm.type,lm.shotsH,lm.shotsA);
+    state.lastMatch={...lm,finished:Date.now()};state.liveMatch=null;
+    const win=H.id===state.userTeamId?lm.hg>lm.ag:lm.ag>lm.hg; const draw=lm.hg===lm.ag;
+    addNews('Spiel beendet',`${H.name} ${lm.hg}:${lm.ag} ${A.name}`,'result');saveState();
+    $('#modalRoot').innerHTML=''; render(); toast(draw?'Remis':win?'Sieg!':'Niederlage',`${H.name} ${lm.hg}:${lm.ag} ${A.name}`);
+  }
+
+  function findGame(id,type){
+    if(type==='friendly')return state.friendlies.find(g=>g.id===id);
+    for(const l of Object.values(state.leagues)){const g=l.schedule.find(x=>x.id===id);if(g)return g;} return null;
+  }
+
+  function applyFinalResult(game,hg,ag,weather,type,shotsH=0,shotsA=0){
+    const H=state.teams[game.home],A=state.teams[game.away]; if(game.played)return;
+    H.stats.played++;A.stats.played++;H.stats.gf+=hg;H.stats.ga+=ag;A.stats.gf+=ag;A.stats.ga+=hg;H.stats.shots+=shotsH;A.stats.shots+=shotsA;H.stats.xg+=Math.max(.2,hg*.8+shotsH*.12);A.stats.xg+=Math.max(.2,ag*.8+shotsA*.12);
+    if(hg>ag){H.stats.wins++;A.stats.losses++;if(H.id===state.userTeamId)H.stats.points+=3;} else if(hg<ag){A.stats.wins++;H.stats.losses++;if(A.id===state.userTeamId)A.stats.points+=3;} else {H.stats.draws++;A.stats.draws++;}
+    H.form=[...(H.form||[]).slice(-4),hg>ag?'W':hg===ag?'D':'L']; A.form=[...(A.form||[]).slice(-4),ag>hg?'W':ag===hg?'D':'L'];
+    H.roster.slice(0,5).forEach(p=>p.games++);A.roster.slice(0,5).forEach(p=>p.games++);
+    const homeRevenue=Math.round(H.stadium.capacity*(0.64+Math.random()*0.28)*9);H.budget+=homeRevenue+(H.sponsor?.pay||0);H.stats.homeRevenue+=homeRevenue;
+    if(H.id===state.userTeamId)H.budget+=hg>ag?5000:hg===ag?1800:0;if(A.id===state.userTeamId)A.budget+=ag>hg?3500:0;
+    if(type==='league'){
+      const l=currentLeague(); const sh=l.standings[H.id],sa=l.standings[A.id]; if(sh&&sa){sh.played++;sa.played++;sh.gf+=hg;sh.ga+=ag;sa.gf+=ag;sa.ga+=hg;sh.gd=sh.gf-sh.ga;sa.gd=sa.gf-sa.ga;if(hg>ag){sh.wins++;sa.losses++;sh.points+=3;}else if(hg<ag){sa.wins++;sh.losses++;sa.points+=3;}else{sh.draws++;sa.draws++;sh.points++;sa.points++;}}
+      game.played=true;game.result={hg,ag,weather:weather.name};
+      state.week++;state.date=new Date(state.date.getTime()+7*86400000);
+      // monthly wage pulse + player development
+      Object.values(state.teams).forEach(t=>{t.budget=Math.max(0,t.budget-t.roster.reduce((s,p)=>s+p.salary,0)/12);});
+      currentTeam().roster.forEach(p=>{if(p.age<22&&Math.random()<.58)p.rating=clamp(p.rating+1,45,97);p.form=clamp(p.form+Math.round(Math.random()*10-4),50,100);});
+    }else{
+      game.played=true;game.result={hg,ag,weather:weather.name};state.friendlies=state.friendlies.filter(g=>g.id!==game.id);state.week=Math.max(1,state.week);H.budget+=H.id===state.userTeamId?2500:0;A.budget+=A.id===state.userTeamId?2500:0;
+    }
+  }
+
+  function buyPlayer(id){
+    const t=currentTeam(),p=state.market.find(x=>x.id===id);if(!p)return;if(t.roster.length>=12){toast('Kader voll','Maximal 12 Spieler.');return;}if(t.budget<p.currentPrice){toast('Nicht genug Budget',money(p.currentPrice));return;}
+    t.budget-=p.currentPrice;t.roster.push({...p,id:uid('p'),teamId:t.id,teamColor:t.teamColor,currentPrice:undefined,listingEndsAt:undefined});state.market=state.market.filter(x=>x.id!==id);addNews('Neuzugang',`${p.name} unterschreibt bei ${t.name}.`,'market');saveState();render();toast('Transfer abgeschlossen',p.name);
+  }
+
+  function bidPlayer(id){
+    const p=state.market.find(x=>x.id===id);if(!p)return;p.bids=(p.bids||0)+1;p.marketHeat=clamp((p.marketHeat||0)+.18,0,1);const offered=Math.round(p.currentPrice*(0.96+Math.random()*.08));
+    toast('Gebot abgegeben',`${p.name}: ${money(offered)}`); setTimeout(()=>{if(Math.random()<0.58){const t=currentTeam(); if(t.roster.length<12&&t.budget>=offered){t.budget-=offered;t.roster.push({...p,id:uid('p'),teamId:t.id,teamColor:t.teamColor});state.market=state.market.filter(x=>x.id!==id);addNews('Auktion gewonnen',`${p.name} kommt nach Katzenelnbogen.`,'market');saveState();render();toast('Auktion gewonnen',p.name);}else toast('Gebot verloren','Budget oder Kaderplatz reicht nicht.');}else toast('Auktion verloren',`${p.name} ging an einen anderen Club.`);},2200);
+  }
+
+  function upgradeStadium(k){
+    const t=currentTeam(),lvl=t.stadium.upgrades[k]||0,cost=Math.round(9000*Math.pow(1.8,lvl));if(t.budget<cost){toast('Budget fehlt',`Benötigt ${money(cost)}.`);return;}t.budget-=cost;t.stadium.upgrades[k]=lvl+1;t.stadium.level=Math.max(t.stadium.level,lvl+2);if(k==='capacity')t.stadium.capacity+=40;if(k==='stands')t.stadium.capacity+=70;if(k==='lighting')t.stadium.capacity+=12;addNews('Arena verbessert',`${t.stadium.name}: ${k} auf Level ${lvl+1}.`,'stadium');saveState();render();toast('Ausbau fertig',`${k} · Level ${lvl+1}`);
+  }
+
+  function hireSponsor(id){const t=currentTeam(),s=SPONSORS.find(x=>x.id===id);if(!s)return;if(t.sponsor&&s.tier<t.sponsor.tier){toast('Vertrag nicht besser','Dieser Sponsor ist eine niedrigere Stufe.');return;}t.sponsor={...s};addNews('Sponsor an Bord',`${s.name} unterstützt ${t.name}.`,'sponsor');saveState();render();toast('Sponsor unterschrieben',s.name);}
+  function hireCoach(id){const t=currentTeam(),c=state.coaches.find(x=>x.id===id);if(!c)return;if(t.coach){toast('Bereits Coach aktiv','Entlasse zuerst den aktuellen Coach.');return;}if(t.budget<c.price){toast('Budget fehlt',money(c.price));return;}t.budget-=c.price;t.coach=c.id;saveState();render();toast('Coach verpflichtet',`${c.name} +${c.boost}%`);}
+  function fireCoach(){const t=currentTeam();if(!t.coach)return;const c=state.coaches.find(x=>x.id===t.coach);t.budget=Math.max(0,t.budget-Math.round(c.price*.35));t.coach=null;saveState();render();toast('Coach entlassen','Vertragsstrafe verbucht.');}
+  function sellPlayer(id){const t=currentTeam(),idx=t.roster.findIndex(p=>p.id===id);if(idx<5||idx<0){toast('Starter geschützt','Verkaufe zuerst einen Bankspieler.');return;}const p=t.roster[idx],val=Math.round(p.value*.72);t.roster.splice(idx,1);t.budget+=val;saveState();render();toast('Spieler verkauft',`${p.name} · +${money(val)}`);}
+
+  function draft(type){
+    const cfg={silver:{cost:7000,n:2,min:58,max:70},gold:{cost:14000,n:3,min:68,max:80},premium:{cost:26000,n:4,min:76,max:91}}[type],t=currentTeam();if(!cfg)return;if(t.budget<cfg.cost){toast('Draft nicht möglich','Budget reicht nicht.');return;}t.budget-=cfg.cost;const p=[];for(let i=0;i<cfg.n;i++)p.push(makePlayer(500+i,t.teamColor,pick(['CB','MF','LW','RW','ST']),cfg.min+Math.random()*(cfg.max-cfg.min)));openModal(`DRAFT · ${type.toUpperCase()}`,p.map((x,i)=>`<div class="draft-pick"><img src="${playerAvatar(x,t.teamColor,true)}"><div><strong>${esc(x.name)}</strong><span>${marketLabel(x.pos)} · ${x.rating}</span></div><b>${money(x.value)}</b><button class="small-btn gold" data-draft-index="${i}">NEHMEN</button></div>`).join(''),{kicker:'YOUTH MARKET',footer:''});state._draftPlayers=p;saveState();}
+
+  function chooseDraft(i){const t=currentTeam(),p=state._draftPlayers?.[i];if(!p)return;if(t.roster.length>=12){toast('Kader voll','Maximal 12 Spieler.');return;}t.roster.push({...p,id:uid('p'),teamId:t.id});delete state._draftPlayers;saveState();closeModal();render();toast('Talent verpflichtet',p.name);}
+
+  function exportSave(){const blob=new Blob([JSON.stringify({...state,liveMatch:null},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='street-kings-save.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);}
+  function importSave(){const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=()=>{const f=input.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);localStorage.setItem(APP_KEY,JSON.stringify(d));location.reload();}catch(e){toast('Import fehlgeschlagen','JSON ist ungültig.');}};r.readAsText(f);};input.click();}
+
+  function tickMarket(){
+    const now=Date.now();
+    state.market.forEach(p=>{
+      const trend=(Math.random()-.49)*(p.marketHeat>.5?0.018:0.011);
+      p.currentPrice=clamp(Math.round(p.currentPrice*(1+trend)),Math.round(p.value*.72),Math.round(p.value*1.22));
+      if(p.listingEndsAt<now){p.listingEndsAt=now+90000+Math.random()*150000;p.currentPrice=Math.round(p.value*(0.9+Math.random()*.15));p.bids=0;}
+    });
+    if(state.active==='market'&&!state.liveMatch)renderPage();
+  }
+
+  function bindGlobal(){
+    document.addEventListener('click',handleClick);
+    document.addEventListener('input',handleInput);
+    setInterval(tickMarket,5000);
+  }
+
+  function go(page){state.active=page;window.scrollTo({top:0,behavior:'smooth'});renderPage();}
+
+  function handleInput(e){
+    const r=e.target?.dataset?.range;if(r){state.tactics[r]=Number(e.target.value);const b=e.target.parentElement?.querySelector('label b');if(b)b.textContent=state.tactics[r];saveState();}
+  }
+
+  function handleClick(e){
+    const el=e.target.closest('[data-page],[data-bottom],[data-simulate],[data-close],[data-welcome],[data-player],[data-sell],[data-buy],[data-bid],[data-watch],[data-tactic],[data-marketfilter],[data-market-refresh],[data-sponsor],[data-upgrade],[data-credit],[data-export],[data-import],[data-reset],[data-draft],[data-draft-index],[data-coach],[data-firecoach],[data-settings-save],[data-add-game],[data-create-friendly],[data-notify],[data-fixture],[data-rename-stadium]');
+    if(!el)return;
+    if(state.liveMatch)return; // Vorstand-Livefenster blockiert andere Navigation bis zum Schlusspfiff
+    if(el.dataset.page)go(el.dataset.page);
+    else if(el.dataset.bottom)go(el.dataset.bottom==='more'?'more':el.dataset.bottom);
+    else if(el.dataset.simulate)simulateButton();
+    else if(el.dataset.close)closeModal();
+    else if(el.dataset.welcome){state.manager=($('#welcomeManager')?.value||'Manager').trim()||'Manager';currentTeam().name=($('#welcomeTeam')?.value||currentTeam().name).trim()||currentTeam().name;state.firstRun=false;saveState();closeModal();render();toast('Willkommen',`Los geht's, ${state.manager}.`);}
+    else if(el.dataset.player)openPlayer(el.dataset.player);
+    else if(el.dataset.sell)sellPlayer(el.dataset.sell);
+    else if(el.dataset.buy)buyPlayer(el.dataset.buy);
+    else if(el.dataset.bid)bidPlayer(el.dataset.bid);
+    else if(el.dataset.watch){const p=state.market.find(x=>x.id===el.dataset.watch);if(p){p.watch=!p.watch;render();}}
+    else if(el.dataset.tactic){state.tactic=el.dataset.tactic;saveState();renderPage();}
+    else if(el.dataset.marketfilter){state.marketFilter=el.dataset.marketfilter;renderPage();}
+    else if(el.dataset.marketRefresh){state.market=generateMarket(18);saveState();renderPage();toast('Marktplatz aktualisiert','Neue Live-Angebote sind da.');}
+    else if(el.dataset.sponsor)hireSponsor(el.dataset.sponsor);
+    else if(el.dataset.upgrade)upgradeStadium(el.dataset.upgrade);
+    else if(el.dataset.credit){const t=currentTeam();t.budget+=50000;saveState();render();toast('Kredit aufgenommen','+50.000 € Vereinsbudget.');}
+    else if(el.dataset.export)exportSave();
+    else if(el.dataset.import)importSave();
+    else if(el.dataset.reset&&confirm('Neuen Spielstand starten?'))resetState();
+    else if(el.dataset.draft)draft(el.dataset.draft);
+    else if(el.dataset.draftIndex)chooseDraft(Number(el.dataset.draftIndex));
+    else if(el.dataset.coach)hireCoach(el.dataset.coach);
+    else if(el.dataset.firecoach)fireCoach();
+    else if(el.dataset.settingsSave){currentTeam().name=($('#teamName')?.value||currentTeam().name).trim()||currentTeam().name;currentTeam().stadium.name=($('#stadiumName')?.value||currentTeam().stadium.name).trim()||currentTeam().stadium.name;state.manager=($('#managerName')?.value||state.manager).trim()||'Manager';saveState();render();toast('Gespeichert','Profil aktualisiert.');}
+    else if(el.dataset.addGame)addFriendly();
+    else if(el.dataset.createFriendly)createFriendly();
+    else if(el.dataset.notify){openModal('NEWS',state.news.map(n=>`<article class="news-modal"><b>${esc(n.title)}</b><span>${esc(n.body)}</span></article>`).join(''),{kicker:'REGIONALE NEWS'});}
+    else if(el.dataset.fixture){const g=findGame(el.dataset.fixture,el.dataset.fixtureType==='Freundschaft'?'friendly':'league');if(g&&!g.played)startLiveMatch(g,el.dataset.fixtureType==='Freundschaft'?'friendly':'league');else toast('Spiel bereits gespielt',g?.result?`${g.result.hg}:${g.result.ag}`:'');}
+    else if(el.dataset.renameStadium){openModal('ARENA UMBENENNEN',`<label class="input-label">Neuer Name<input class="text-input" id="newStadiumName" value="${esc(currentTeam().stadium.name)}"></label><button class="gold-btn wide" data-save-stadium>UMBENENNEN · 5.000 €</button>`,{kicker:'ARENA'});}
+    else if(el.dataset.saveStadium){const t=currentTeam(),v=($('#newStadiumName')?.value||'').trim();if(!v)return;if(t.budget<5000){toast('Budget fehlt','Benötigt 5.000 €');return;}t.budget-=5000;t.stadium.name=v;saveState();closeModal();render();}
+  }
+
+  // Small second-level handlers for modal buttons that are rendered dynamically.
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-save-stadium]');if(b){const t=currentTeam(),v=($('#newStadiumName')?.value||'').trim();if(!v)return;if(t.budget<5000){toast('Budget fehlt','Benötigt 5.000 €');return;}t.budget-=5000;t.stadium.name=v;saveState();closeModal();render();}});
+
+  initState();
+  render();
+  bindGlobal();
 })();
