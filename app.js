@@ -11,8 +11,8 @@
 (() => {
   'use strict';
 
-  const APP_KEY = 'streetKingsSaveV18';
-  const APP_VERSION = '18.0.0';
+  const APP_KEY = 'streetKingsSaveV19';
+  const APP_VERSION = '19.0.0';
   const LEGACY_KEYS = ['streetKingsSaveV15','streetKingsSaveV14','streetKingsSaveV13','streetKingsSaveV12','streetKingsSaveV11','streetKingsSaveV10','streetKingsSaveV9','streetKingsSaveV8','streetKingsSaveV7','streetKingsSaveV6','streetKingsSaveV5','streetKingsSaveV4','streetKingsSaveV3','streetKingsSaveV2','streetKingsSave'];
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -157,6 +157,7 @@
     state.pendingTeamId=null;
     state.introStage='club';
     state.active='home';
+    state.liveMatch=null; state.lastMatch=null;
     render();
     window.scrollTo(0,0);
     setTimeout(()=>toast('NEUE MANAGERKARRIERE','Wähle jetzt deinen neuen Verein.'),80);
@@ -281,7 +282,7 @@
   }
 
   function initState(){
-    // V18 intentionally starts with a clean career. Older local saves are removed once.
+    // V19 intentionally starts with a clean career. Older local saves are removed once.
     // We do NOT migrate an old selected team into the new career.
     try{
       const oldKeys=[];
@@ -329,7 +330,7 @@
       const oldManager=state.manager||'Manager';
       const oldBudget=Number(state.teams?.[state.userTeamId]?.budget||46357);
       state.teams={};state.leagues={};
-      const teams=buildTeams(); teams.forEach(t=>state.teams[t.id]=t); state.userTeamId=teams[0].id;
+      const teams=buildTeams(); teams.forEach(t=>state.teams[t.id]=t); state.userTeamId=null;
       state.leagues.L1=makeLeague(teams.slice(0,9),'Kreisliga A',1);
       state.leagues.L2=makeLeague(teams.slice(9,18),'Kreisliga B',2);
       state.leagues.L3=makeLeague(teams.slice(18,26),'Kreisliga C',3);
@@ -343,10 +344,9 @@
       state.friendlies=[];
       state.season=1;state.week=1;state.date=new Date('2026-08-15T18:00:00');state.lastMatch=null;state.liveMatch=null;
       state.version=APP_VERSION;
-      state.teamChosen=true; state.firstRun=false;
-      const ut=currentTeam();ut.budget=Math.max(46357,oldBudget);ut.sponsor={...SPONSORS[0]};ut.stadium.capacity=220;
+      state.teamChosen=false; state.firstRun=true; state.pendingTeamId=null; state.introStage='club';
+      state.active='home';
       ensureManagerSystems();
-      saveState();
       return;
     }
     Object.values(state.teams||{}).forEach(t=>{t.logo=clubLogoForTeam(t)||('assets/clubs/'+slugify(t.name)+'.png');});
@@ -809,6 +809,7 @@
   function renderPage(){
     const map={home:renderHome,team:renderTeam,tactics:renderTactics,league:renderLeague,games:renderGames,calendar:renderCalendar,market:renderMarket,transfers:renderTransfers,offers:renderPlayerOffers,contracts:renderContracts,overview:renderTeamOverview,sponsors:renderSponsors,stadium:renderStadium,finances:renderFinances,stats:renderStats,draft:renderDraft,coaches:renderCoaches,settings:renderSettings,more:renderMore,city:renderCity,news:renderNews,prematch:renderPreMatch};
     $('#view').innerHTML=(map[state.active]||renderHome)();
+    bindPriorityTouchControls();
   }
 
   function ensureClubLogoCSS(){ if(document.getElementById('club-logo-fix-css')) return; const st=document.createElement('style'); st.id='club-logo-fix-css'; st.textContent='.club-crest{width:42px;height:42px;object-fit:contain;display:block;flex:0 0 auto}.team-select-card .club-crest{width:56px;height:56px;margin:auto}.match-versus img.club-crest,.live-score img.club-crest{width:54px;height:54px;object-fit:contain}.league-row img.club-crest,.table-row img.club-crest{width:34px;height:34px;object-fit:contain}'; document.head.appendChild(st); }
@@ -835,10 +836,36 @@
     if(!state.teamChosen){
       $('#app').innerHTML=renderTeamOnboarding();
       $('#modalRoot').innerHTML='';
+      bindPriorityTouchControls();
       return;
     }
     $('#app').innerHTML=renderShell();
     renderPage();
+  }
+
+  function bindPriorityTouchControls(){
+    // iOS/Safari-safe direct handlers for the controls that must never depend on
+    // delegated event bubbling. Each render creates fresh DOM nodes, so binding
+    // directly here avoids the old pointer/touch/click race.
+    const activate=(el,fn)=>{
+      if(!el || el.dataset.priorityBound==='1') return;
+      el.dataset.priorityBound='1';
+      let locked=false;
+      const run=(e)=>{
+        if(e){e.preventDefault(); e.stopPropagation();}
+        if(locked)return;
+        locked=true;
+        fn(e);
+        setTimeout(()=>{locked=false;},450);
+      };
+      el.addEventListener('touchend',run,{passive:false});
+      el.addEventListener('pointerup',run,{passive:false});
+      el.addEventListener('click',run);
+    };
+    $$('.team-select-card').forEach(el=>activate(el,()=>choosePendingTeam(el.dataset.selectTeam)));
+    $$('[data-club-continue]').forEach(el=>activate(el,()=>commitTeamSelection()));
+    $$('[data-new-game-flow],[data-reset],[data-confirm-reset]').forEach(el=>activate(el,()=>startNewGameFlow()));
+    $$('[data-close],.close-btn').forEach(el=>activate(el,()=>closeModal()));
   }
 
   function openModal(title,body,opts={}){
@@ -846,6 +873,7 @@
     const showClose=opts.hideClose!==true && !state.liveMatch;
     root.innerHTML=`<div class="modal-layer ${opts.full?'full':''}" id="activeModal"><div class="modal-sheet"><div class="modal-bar"><div>${opts.kicker?`<span>${esc(opts.kicker)}</span>`:''}<strong>${title}</strong></div>${showClose?`<button type="button" class="close-btn" data-close aria-label="Fenster schließen">×</button>`:''}</div><div class="modal-body">${body}</div>${opts.footer??''}</div></div>`;
     if(!opts.lock)$('#activeModal')?.addEventListener('click',e=>{if(e.target.id==='activeModal')closeModal();});
+    bindPriorityTouchControls();
   }
   function closeModal(){$('#modalRoot').innerHTML='';}
 
@@ -1632,31 +1660,13 @@
   function bindGlobal(){
     let lastActionEl=null,lastActionAt=0;
     const dispatchAction=(e)=>{
-      const el=e.target.closest?.('[data-page],[data-bottom],[data-simulate],[data-close],[data-save-stadium],[data-welcome],[data-player],[data-sell],[data-buy],[data-bid],[data-watch],[data-tactic],[data-marketfilter],[data-market-refresh],[data-sponsor],[data-upgrade],[data-credit],[data-export],[data-import],[data-reset],[data-new-game-flow],[data-confirm-reset],[data-draft],[data-draft-index],[data-coach],[data-firecoach],[data-settings-save],[data-select-team],[data-club-continue],[data-add-game],[data-create-friendly],[data-notify],[data-fixture],[data-rename-stadium],[data-offer-player],[data-inquire-player],[data-trade-player],[data-send-offer],[data-send-inquiry],[data-intro-next],[data-accept-counter],[data-incoming-accept],[data-incoming-reject],[data-renew-contract],[data-confirm-renew],[data-accept-renew-counter],[data-confirm-hire-coach],[data-accept-coach-counter],[data-team-overview],[data-start-match],[data-calendar-league],[data-repay-credit]');
+      const el=e.target.closest?.('[data-page],[data-bottom],[data-simulate],[data-close],[data-save-stadium],[data-welcome],[data-player],[data-sell],[data-buy],[data-bid],[data-watch],[data-tactic],[data-marketfilter],[data-market-refresh],[data-sponsor],[data-upgrade],[data-credit],[data-export],[data-import],[data-reset],[data-new-game-flow],[data-confirm-reset],[data-draft],[data-draft-index],[data-coach],[data-firecoach],[data-settings-save],[data-select-team],[data-club-continue],[data-add-game],[data-create-friendly],[data-notify],[data-fixture],[data-rename-stadium],[data-offer-player],[data-inquire-player],[data-trade-player],[data-send-offer],[data-send-inquiry],[data-intro-next],[data-accept-counter],[data-incoming-accept],[data-incoming-reject],[data-renew-contract],[data-confirm-renew],[data-accept-renew-counter],[data-confirm-hire-coach],[data-accept-coach-counter],[data-team-overview],[data-start-match],[data-calendar-league],[data-repay-credit]');      if(e.target.closest?.('.team-select-card,[data-club-continue],[data-new-game-flow],[data-reset],[data-confirm-reset],[data-close],.close-btn')) return;
       if(!el)return;
       const now=Date.now();
       if(lastActionEl===el && now-lastActionAt<700)return;
       lastActionEl=el; lastActionAt=now;
       handleClick(e);
     };
-    document.addEventListener('pointerup',(e)=>{
-      const b=e.target.closest?.('[data-new-game-flow],[data-confirm-reset],[data-reset]');
-      if(!b) return;
-      e.preventDefault(); e.stopImmediatePropagation();
-      startNewGameFlow();
-    },true);
-    document.addEventListener('touchend',(e)=>{
-      const b=e.target.closest?.('[data-new-game-flow],[data-confirm-reset],[data-reset]');
-      if(!b) return;
-      e.preventDefault(); e.stopImmediatePropagation();
-      startNewGameFlow();
-    },{capture:true,passive:false});
-    document.addEventListener('click',(e)=>{
-      const b=e.target.closest?.('[data-new-game-flow],[data-confirm-reset],[data-reset]');
-      if(!b) return;
-      e.preventDefault(); e.stopImmediatePropagation();
-      startNewGameFlow();
-    },true);
     document.addEventListener('pointerup',dispatchAction,true);
     document.addEventListener('touchend',dispatchAction,{capture:true,passive:false});
     document.addEventListener('click',dispatchAction,true);
