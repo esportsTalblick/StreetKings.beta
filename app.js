@@ -761,11 +761,32 @@
 
   function ensureClubLogoCSS(){ if(document.getElementById('club-logo-fix-css')) return; const st=document.createElement('style'); st.id='club-logo-fix-css'; st.textContent='.club-crest{width:42px;height:42px;object-fit:contain;display:block;flex:0 0 auto}.team-select-card .club-crest{width:56px;height:56px;margin:auto}.match-versus img.club-crest,.live-score img.club-crest{width:54px;height:54px;object-fit:contain}.league-row img.club-crest,.table-row img.club-crest{width:34px;height:34px;object-fit:contain}'; document.head.appendChild(st); }
 
+  function renderTeamOnboarding(){
+    const leagueData=[['L1','LIGA 1 · KREISLIGA A'],['L2','LIGA 2 · KREISLIGA B'],['L3','LIGA 3 · KREISLIGA C']];
+    const tabs=leagueData.map(([id,label])=>`<section class="onboard-league"><h2>${label}</h2><div class="team-select-grid onboarding-grid">${state.leagues[id].teams.map(tid=>{const t=state.teams[tid];return `<button type="button" class="team-select-card ${state.pendingTeamId===tid?'selected':''}" data-select-team="${tid}"><img class="club-crest" src="${crest(t)}" alt="${esc(t.name)}"><strong>${esc(t.name)}</strong><small>${esc(t.city)}</small><em>OVR ${Math.round(teamStrength(t))}</em></button>`}).join('')}</div></section>`).join('');
+    return `<div class="onboarding-screen">
+      <div class="onboarding-brand"><img src="assets/branding/logo-main.png" alt="STREET KINGS MANAGER"><span>KATZENELNBOGEN · AAR-EINRICH</span></div>
+      <section class="onboarding-card">
+        <div class="eyebrow">START · DEINE KARRIERE</div>
+        <h1>WÄHLE DEINEN VEREIN</h1>
+        <p>Du startest direkt hier. Kein Pop-up. Tippe auf einen Club und bestätige anschließend mit <b>WEITER</b>.</p>
+        <label class="input-label">MANAGERNAME<input class="text-input" id="welcomeManager" value="${esc(state.manager||'Manager')}" autocomplete="name"></label>
+        <div class="onboarding-scroll">${tabs}</div>
+        <div class="onboarding-footer"><div id="onboardingChoice">${state.pendingTeamId?`Ausgewählt: <b>${esc(state.teams[state.pendingTeamId]?.name||'Team')}</b>`:'Noch kein Team ausgewählt.'}</div><button type="button" class="gold-btn wide" data-club-continue ${state.pendingTeamId?'':'disabled'}>WEITER</button></div>
+        <div class="onboarding-hint">💾 <b>Spielstand:</b> Nach der Vereinswahl findest du Speichern, Exportieren, Importieren und <b>Neues Spiel</b> unter <b>Einstellungen</b>.</div>
+      </section>
+    </div>`;
+  }
+
   function render(){
     ensureClubLogoCSS();
+    if(!state.teamChosen){
+      $('#app').innerHTML=renderTeamOnboarding();
+      $('#modalRoot').innerHTML='';
+      return;
+    }
     $('#app').innerHTML=renderShell();
     renderPage();
-    if(state.firstRun && state.introStage==='welcome' && !state.teamChosen && !state.liveMatch && !document.getElementById('skmStartupSplash') && !document.getElementById('activeModal')){setTimeout(showWelcome,120);}
   }
 
   function openModal(title,body,opts={}){
@@ -792,10 +813,15 @@
     const btn=document.querySelector('[data-club-continue]'); if(btn){btn.disabled=false;btn.classList.remove('disabled');}
   }
   function commitTeamSelection(){
-    const t=state.teams[state.pendingTeamId]; if(!t){toast('Team auswählen','Bitte zuerst einen Verein antippen.');return;}
-    state.userTeamId=t.id; state.manager=(document.querySelector('#welcomeManager')?.value||state.manager).trim()||'Manager';
-    t.sponsor=t.sponsor||{...SPONSORS[0]}; state.teamChosen=true; state.firstRun=false; state.introStage='done'; state.pendingTeamId=null; state.active='home';
-    saveState(); closeModal(); renderPage(); toast('CLUB GEWÄHLT',`${t.name} · ${t.city}`);
+    const t=state.teams[state.pendingTeamId];
+    if(!t){alert('Bitte zuerst einen Verein auswählen.');return;}
+    state.userTeamId=t.id;
+    state.manager=(document.querySelector('#welcomeManager')?.value||state.manager||'Manager').trim()||'Manager';
+    t.sponsor=t.sponsor||{...SPONSORS[0]};
+    state.teamChosen=true; state.firstRun=false; state.introStage='done'; state.pendingTeamId=null; state.active='home';
+    saveState();
+    render();
+    setTimeout(()=>toast('CLUB GEWÄHLT',`${t.name} · ${t.city}`),40);
   }
 
   function openPlayer(id){
@@ -1548,8 +1574,7 @@
   if(new URLSearchParams(location.search).has('newgame')){ state.teamChosen=false; state.firstRun=true; state.introStage='club'; state.pendingTeamId=null; }
   state.version=APP_VERSION;
   ensureManagerSystems();
-  saveState();
+  if(state.teamChosen) saveState();
   render();
   bindGlobal();
-  if(new URLSearchParams(location.search).has('newgame')) setTimeout(showClubSelection,120);
 })();
