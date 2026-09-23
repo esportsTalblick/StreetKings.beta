@@ -11,7 +11,7 @@
 (() => {
   'use strict';
 
-  const APP_KEY = 'streetKingsSaveV2';
+  const APP_KEY = 'streetKingsSaveV4';
   const LEGACY_KEY = 'streetKingsSave';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -44,10 +44,10 @@
     {id:'autohaus',name:'AUTOHAUS BELZER',tier:3,pay:24500,bonus:0.045,accent:'#6fb7ff',asset:'assets/sponsors/sponsor-3.png'},
     {id:'regional',name:'AAR-EINRICH PARTNER',tier:3,pay:28000,bonus:0.05,accent:'#f59e0b',asset:'assets/sponsors/banner.png'}
   ];
-  const TEAM_NAMES = [["Street Kings","Katzenelnbogen"],["Taunus Park FC","Hahnstätten"],["Limburg United","Limburg"],["Diezer SV","Diez"],["Nassau FC","Nassau"],["Bad Ems 1911","Bad Ems"],["Aar Tal FC","Aarbergen"],["VfR Einrich","Klingelbach"],["Blau-Weiss Allendorf","Allendorf"],["TuS Hünstätten","Hünstätten"],["SV Holzhausen","Holzhausen"],["FC Scheidt","Scheidt"],["Viktoria Berg","Berg"],["SG Lahn Blick","Lahnstein"],["FC Zollhaus","Zollhaus"],["SV Oberneisen","Oberneisen"],["RSV Heistern","Heistern"],["FC Dörsdorf","Dörsdorf"],["SV Rettert","Rettert"],["TuS Eisenbach","Eisenbach"],["SV Kördorf","Körsdorf"],["FC Netzen","Netzen"],["SG Flacht","Flacht"],["SV Niederneisen","Niederneisen"],["FC Kaldorf","Kaldorf"]];
+  const TEAM_NAMES = [["Street Kings","Katzenelnbogen"],["Taunus Park FC","Hahnstätten"],["Limburg United","Limburg"],["Diezer SV","Diez"],["Nassau FC","Nassau"],["Bad Ems 1911","Bad Ems"],["FC Talblick","Aarbergen"],["Aar Tal FC","Aarbergen"],["VfR Einrich","Klingelbach"],["Blau-Weiss Allendorf","Allendorf"],["TuS Hünstätten","Hünstätten"],["SV Holzhausen","Holzhausen"],["FC Scheidt","Scheidt"],["Viktoria Berg","Berg"],["SG Lahn Blick","Lahnstein"],["FC Zollhaus","Zollhaus"],["SV Oberneisen","Oberneisen"],["RSV Heistern","Heistern"],["FC Dörsdorf","Dörsdorf"],["SV Rettert","Rettert"],["TuS Eisenbach","Eisenbach"],["SV Kördorf","Körsdorf"],["FC Netzen","Netzen"],["SG Flacht","Flacht"],["SV Niederneisen","Niederneisen"],["FC Kaldorf","Kaldorf"]];
 
   const state = {
-    version:'3.0.0', firstRun:true, teamChosen:false, manager:'Manager', active:'home', season:1, week:1,
+    version:'4.0.0', firstRun:true, teamChosen:false, manager:'Manager', active:'home', season:1, week:1,
     date:new Date('2026-08-15T18:00:00'), userTeamId:null, teams:{}, leagues:{}, market:[], coaches:[], news:[],
     friendlies:[], marketFilter:'all', tactic:'1-2-2', tactics:{pressing:62,risk:50,tempo:58,passing:56}, notifications:2,
     trophies:0, fans:77, lastMatch:null, liveMatch:null
@@ -84,7 +84,7 @@
   }
 
   function buildTeams(){
-    return TEAM_NAMES.map((x,i)=>teamObj(x[0],x[1],i<8?74:i<16?68:62,i<8?1:i<16?2:3,i===0?'#39f2a5':null));
+    return TEAM_NAMES.map((x,i)=>teamObj(x[0],x[1],i<9?74:i<18?68:62,i<9?1:i<18?2:3,i===0?'#39f2a5':null));
   }
 
   function makeLeague(teams,name,level){
@@ -129,14 +129,14 @@
       try{
         const d=JSON.parse(raw); const oldVersion=String(d.version||'0');
         Object.assign(state,d); normalizeState();
-        if(oldVersion!=='3.0.0'){ state.version='3.0.0'; state.firstRun=true; state.teamChosen=false; }
+        if(oldVersion!=='4.0.0'){ state.version='4.0.0'; state.firstRun=true; state.teamChosen=false; }
         return;
       }catch(e){console.warn('Save konnte nicht geladen werden',e);}
     }
     const teams=buildTeams(); teams.forEach(t=>state.teams[t.id]=t); state.userTeamId=teams[0].id;
-    state.leagues.L1=makeLeague(teams.slice(0,8),'Kreisliga A',1);
-    state.leagues.L2=makeLeague(teams.slice(8,17),'Kreisliga B',2);
-    state.leagues.L3=makeLeague(teams.slice(17,25),'Kreisliga C',3);
+    state.leagues.L1=makeLeague(teams.slice(0,9),'Kreisliga A',1);
+    state.leagues.L2=makeLeague(teams.slice(9,18),'Kreisliga B',2);
+    state.leagues.L3=makeLeague(teams.slice(18,26),'Kreisliga C',3);
     const t=currentTeam(); t.sponsor={...SPONSORS[0]}; t.stadium.capacity=220;
     state.market=generateMarket(48); state.coaches=generateCoaches();
     state.news=[
@@ -152,25 +152,25 @@
   function normalizeState(){
     state.active=state.active||'home'; state.tactic=state.tactic||'1-2-2'; state.tactics=state.tactics||{pressing:62,risk:50,tempo:58,passing:56};
     const leagueSizes=Object.values(state.leagues||{}).map(l=>Array.isArray(l.teams)?l.teams.length:0).sort((a,b)=>a-b);
-    const validStructure=Object.keys(state.teams||{}).length===25 && leagueSizes.join(',')==='8,8,9';
+    const validStructure=Object.keys(state.teams||{}).length===26 && leagueSizes.join(',')==='8,9,9';
     if(!validStructure){
       const oldManager=state.manager||'Manager';
       const oldBudget=Number(state.teams?.[state.userTeamId]?.budget||46357);
       state.teams={};state.leagues={};
       const teams=buildTeams(); teams.forEach(t=>state.teams[t.id]=t); state.userTeamId=teams[0].id;
-      state.leagues.L1=makeLeague(teams.slice(0,8),'Kreisliga A',1);
-      state.leagues.L2=makeLeague(teams.slice(8,17),'Kreisliga B',2);
-      state.leagues.L3=makeLeague(teams.slice(17,25),'Kreisliga C',3);
+      state.leagues.L1=makeLeague(teams.slice(0,9),'Kreisliga A',1);
+      state.leagues.L2=makeLeague(teams.slice(9,18),'Kreisliga B',2);
+      state.leagues.L3=makeLeague(teams.slice(18,26),'Kreisliga C',3);
       state.manager=oldManager;
       state.market=generateMarket(48); state.coaches=generateCoaches();
       state.news=[
-        {title:'25 Clubs · 3 Ligen',body:'Die neue Street-Kings-Landschaft rund um Katzenelnbogen ist online.',kind:'city'},
+        {title:'26 Clubs · 3 Ligen',body:'Die neue Street-Kings-Landschaft rund um Katzenelnbogen ist online.',kind:'city'},
         {title:'Live-Simulation verbessert',body:'5 gegen 5, Ballbewegung, Spieleranimation und Spielereignisse laufen jetzt sichtbar.',kind:'result'},
         {title:'Marktplatz geöffnet',body:'Neue Talente aus Aar-Einrich und Rhein-Lahn warten auf Angebote.',kind:'market'}
       ];
       state.friendlies=[];
       state.season=1;state.week=1;state.date=new Date('2026-08-15T18:00:00');state.lastMatch=null;state.liveMatch=null;
-      state.version='3.0.0';
+      state.version='4.0.0';
       state.teamChosen=false; state.firstRun=true;
       const ut=currentTeam();ut.budget=Math.max(46357,oldBudget);ut.sponsor={...SPONSORS[0]};ut.stadium.capacity=220;
       state.firstRun=false;saveState();
@@ -185,7 +185,7 @@
       t.stadium ||= {name:`${t.name} Street Arena`,capacity:180,level:1,upgrades:{}}; t.stadium.upgrades ||= {}; t.youth ||= 1; t.budget ||= 120000; t.logo ||= `assets/clubs/${slugify(t.name)}.svg`;
     });
     Object.values(state.leagues||{}).forEach(l=>{l.standings ||= {};l.schedule ||= [];});
-    state.liveMatch=null; state.version='3.0.0';
+    state.liveMatch=null; state.version='4.0.0';
   }
 
   function saveState(){
@@ -213,9 +213,17 @@
 
   function resetState(){localStorage.removeItem(APP_KEY);localStorage.removeItem(LEGACY_KEY);location.reload();}
 
+  const EMOJI = {
+    home:'🏠', team:'👥', tactics:'🎯', games:'⚽', league:'🏆', transfers:'↔️',
+    market:'💰', city:'🏙️', news:'📰', sponsors:'💼', stadium:'🏟️', finances:'💶',
+    stats:'📊', draft:'🌱', coaches:'🧑‍💼', settings:'⚙️', youth:'🧒', scouting:'🔎',
+    club:'🏰', save:'💾', back:'◀️', next:'▶️', menu:'☰', trophy:'🏆'
+  };
+  const emoji = key => `<span class="emoji-icon" aria-hidden="true">${EMOJI[key]||'•'}</span>`;
+
   function renderShell(){
     const t=currentTeam(), l=currentLeague();
-    const bottom=[['home','assets/icons/home.png','Home'],['team','assets/icons/verein.png','Verein'],['games','assets/icons/spielen.png','Spielen'],['market','assets/icons/markt.png','Markt'],['more','assets/icons/menu-grid.png','Menü']];
+    const bottom=[['home','home','Home'],['team','team','Verein'],['games','games','Spielen'],['market','market','Markt'],['more','menu','Menü']];
     return `<div class="mobile-app">
       <header class="mobile-topbar">
         <button class="brand-lockup" data-page="home" aria-label="Home">
@@ -229,7 +237,7 @@
         </div>
       </header>
       <main id="view" class="view"></main>
-      <nav class="bottom-nav">${bottom.map(([k,ico,label])=>`<button data-bottom="${k}" class="${state.active===k?'active':''}"><span><img src="${ico}" alt=""></span><small>${label}</small></button>`).join('')}</nav>
+      <nav class="bottom-nav">${bottom.map(([k,ico,label])=>`<button data-bottom="${k}" class="${state.active===k?'active':''}"><span>${emoji(ico)}</span><small>${label}</small></button>`).join('')}</nav>
       <div id="modalRoot"></div>
       <div id="toast" class="toast"><strong id="toastTitle"></strong><span id="toastBody"></span></div>
     </div>`;
@@ -241,7 +249,7 @@
   function renderHome(){
     const t=currentTeam(),l=currentLeague(),ng=nextUserGame(); const opp=ng?state.teams[ng.home===t.id?ng.away:ng.home]:null;
     const stand=standings(l), liveListings=state.market.slice().sort((a,b)=>b.currentPrice-a.currentPrice).slice(0,4);
-    const quick=[['team','assets/icons/verein.png','Verein'],['tactics','assets/icons/team.png','Team'],['games','assets/icons/spielen.png','Spielen'],['league','assets/icons/liga.png','Liga'],['transfers','assets/icons/transfers.png','Transfers'],['market','assets/icons/markt.png','Marktplatz'],['city','assets/icons/stadt.png','Stadt'],['news','assets/icons/news.png','News']];
+    const quick=[['team','team','Verein'],['tactics','tactics','Team'],['games','games','Spielen'],['league','league','Liga'],['transfers','transfers','Transfers'],['market','market','Marktplatz'],['city','city','Stadt'],['news','news','News']];
     return `<section class="home-screen">
       <div class="home-meta"><div><span>SAISON ${state.season}</span><b>· WOCHE ${state.week}</b></div><div><strong>${money(t.budget)}</strong><span> · 😎 ${Math.round(teamStrength(t))}</span></div></div>
       <section class="home-hero exact-sheet-hero">
@@ -254,7 +262,7 @@
         <div><small>NÄCHSTES SPIEL</small><b>${ng&&opp?`VS ${esc(opp.name)}`:'SAISONABSCHLUSS'}</b><span>${ng?'Kreisliga · 18:00 · Bolzplatz Katzenelnbogen':'Neue Saison vorbereiten'}</span></div>
         <button class="gold-btn" data-simulate="1">${ng?'LIVE':'START'}</button>
       </div>
-      <div class="quick-grid">${quick.map(([p,i,lbl])=>`<button data-page="${p}"><span><img src="${i}" alt=""></span><b>${lbl}</b></button>`).join('')}</div>
+      <div class="quick-grid">${quick.map(([p,i,lbl])=>`<button data-page="${p}"><span>${emoji(i)}</span><b>${lbl}</b></button>`).join('')}</div>
       ${renderSponsorHome(t)}
       ${renderLineupCard()}
       <div class="design-split"><div>${card('TABELLE · '+esc(l.name),`<div class="table-list compact">${stand.slice(0,5).map((s,i)=>{const tt=state.teams[s.teamId];return `<div class="table-row ${tt.id===t.id?'me':''}"><b>${i+1}</b><img src="${crest(tt)}"><span>${esc(tt.name)}</span><small>${s.points} P</small></div>`}).join('')}</div><button class="ghost-btn wide" data-page="league">MEHR</button>`)}</div><div>${card('LIVE-MARKT',`<div class="market-mini-list">${liveListings.map(p=>`<button class="market-mini" data-player="${p.id}"><img src="${playerAvatar(p,p.teamColor,true)}"><span><b>${esc(p.name.split(' ')[0])}</b><small>${marketLabel(p.pos)} · ${p.rating}</small></span><strong>${money(p.currentPrice)}</strong></button>`).join('')}</div><button class="ghost-btn wide" data-page="market">MARKTPLATZ ÖFFNEN</button>`)}</div></div>
@@ -396,7 +404,7 @@
     const t=currentTeam();
     return `${pageHead('Stadt','Katzenelnbogen · Aar-Einrich',`<span class="rank-pill">REGION</span>`)}
       ${card('Katzenelnbogen',`<div class="city-scene"><img src="assets/city/city-bg.png" alt="Katzenelnbogen"><div class="city-sign">KATZENELNBOGEN</div></div><div class="region-stats"><span><b>3</b><small>LIGEN</small></span><span><b>25</b><small>TEAMS</small></span><span><b>${state.fans||77}</b><small>FANS</small></span></div>`)}
-      ${card('Regionale Ziele',`<div class="region-list"><button data-page="league"><img src="assets/icons/liga.png"><span><b>Kreisliga A–C</b><small>25 Clubs · 3 Ligen</small></span><i>›</i></button><button data-page="market"><img src="assets/icons/markt.png"><span><b>Marktplatz</b><small>Spieler aus der Region</small></span><i>›</i></button><button data-page="sponsors"><img src="assets/icons/sponsoren.png"><span><b>Sponsoren</b><small>Partner aus Aar-Einrich</small></span><i>›</i></button></div>`)}
+      ${card('Regionale Ziele',`<div class="region-list"><button data-page="league"><span class="emoji-mini">${emoji("league")}</span><span><b>Kreisliga A–C</b><small>26 Clubs · 3 Ligen</small></span><i>›</i></button><button data-page="market"><span class="emoji-mini">${emoji("market")}</span><span><b>Marktplatz</b><small>48+ Spieler · Auktionen</small></span><i>›</i></button><button data-page="sponsors"><span class="emoji-mini">${emoji("sponsors")}</span><span><b>Sponsoren</b><small>Partner aus Aar-Einrich</small></span><i>›</i></button></div>`)}
     `;
   }
 
@@ -407,8 +415,8 @@
   }
 
   function renderMore(){
-    const items=[['transfers','assets/icons/transfers.png','Transfers'],['tactics','assets/icons/team.png','Taktik'],['league','assets/icons/liga.png','Liga'],['sponsors','assets/icons/sponsoren.png','Sponsoren'],['stadium','assets/icons/stadion.png','Arena'],['finances','assets/icons/finanzen.png','Finanzen'],['stats','assets/icons/stats.png','Statistiken'],['draft','assets/icons/jugend.png','Draft'],['coaches','assets/icons/verein.png','Coaches'],['city','assets/icons/stadt.png','Stadt'],['news','assets/icons/news.png','News'],['settings','assets/icons/einstellungen.png','Einstellungen']];
-    return `${pageHead('Mehr','Alle Manager-Systeme')}${card('Menü',`<div class="menu-grid">${items.map(([k,i,l])=>`<button data-page="${k}"><span><img src="${i}" alt=""></span><b>${l}</b></button>`).join('')}</div>`)}${card('Region',`<div class="region-card"><strong>Katzenelnbogen</strong><span>Aar-Einrich · Rhein-Lahn · Untertaunus</span><p>Scouting, Sponsoren und Gegner kommen aus der Region und wachsen mit deinem Verein.</p></div>`)}`;
+    const items=[['transfers','transfers','Transfers'],['tactics','tactics','Taktik'],['league','league','Liga'],['sponsors','sponsors','Sponsoren'],['stadium','stadium','Arena'],['finances','finances','Finanzen'],['stats','stats','Statistiken'],['draft','draft','Draft'],['coaches','coaches','Coaches'],['city','city','Stadt'],['news','news','News'],['settings','settings','Einstellungen']];
+    return `${pageHead('Mehr','Alle Manager-Systeme')}${card('Menü',`<div class="menu-grid">${items.map(([k,i,l])=>`<button data-page="${k}"><span>${emoji(i)}</span><b>${l}</b></button>`).join('')}</div>`)}${card('Region',`<div class="region-card"><strong>Katzenelnbogen</strong><span>Aar-Einrich · Rhein-Lahn · Untertaunus</span><p>Scouting, Sponsoren und Gegner kommen aus der Region und wachsen mit deinem Verein.</p></div>`)}`;
   }
 
   function renderPage(){
@@ -432,7 +440,7 @@
   function showWelcome(){
     const leagueData=[['L1','LIGA 1 · KREISLIGA A'],['L2','LIGA 2 · KREISLIGA B'],['L3','LIGA 3 · KREISLIGA C']];
     const tabs=leagueData.map(([id,label],i)=>`<div class="team-select-group"><h3>${label}</h3><div class="team-select-grid">${state.leagues[id].teams.map(tid=>{const t=state.teams[tid];return `<button class="team-select-card ${state.userTeamId===tid?'selected':''}" data-select-team="${tid}"><img src="${crest(t)}" alt=""><strong>${esc(t.name)}</strong><small>${esc(t.city)}</small></button>`}).join('')}</div></div>`).join('');
-    openModal('DEIN CLUB · WÄHLE DEIN TEAM',`<div class="welcome-art"><img src="assets/branding/logo-main.png" alt="STREET KINGS MANAGER"><strong>KATZENELNBOGEN · AAR-EINRICH</strong><span>25 CLUBS · 3 LIGEN</span></div><p class="modal-copy">Bevor du startest, wählst du den Verein, den du als Manager übernimmst. Du bekommst dessen Kader, Farben, Stadion und Startbudget.</p><label class="input-label">Managername<input class="text-input" id="welcomeManager" value="${esc(state.manager)}"></label><div class="team-select-scroll">${tabs}</div>`,{lock:true,kicker:'START · CLUB WÄHLEN',full:false});
+    openModal('DEIN CLUB · WÄHLE DEIN TEAM',`<div class="welcome-art"><img src="assets/branding/logo-main.png" alt="STREET KINGS MANAGER"><strong>KATZENELNBOGEN · AAR-EINRICH</strong><span>26 CLUBS · 3 LIGEN</span></div><p class="modal-copy">Bevor du startest, wählst du den Verein, den du als Manager übernimmst. Du bekommst dessen Kader, Farben, Stadion und Startbudget.</p><label class="input-label">Managername<input class="text-input" id="welcomeManager" value="${esc(state.manager)}"></label><div class="team-select-scroll">${tabs}</div>`,{lock:true,kicker:'START · CLUB WÄHLEN',full:false});
   }
 
   function openPlayer(id){
@@ -486,146 +494,364 @@
     return {players:{home:makeSide(H,'home',homeBases),away:makeSide(A,'away',awayBases)},ball:{x:53,y:50,side:'home',index:4,mode:'hold',sx:53,sy:50,tx:53,ty:50,start:0,duration:0},nextDecisionAt:performance.now()+900,lastCommentAt:0,action:null,phase:'kickoff'};
   }
 
+  const HALF_MS=60000, HALF_BREAK_MS=4000, TOTAL_MATCH_MS=HALF_MS*2+HALF_BREAK_MS;
+
   function startLiveMatch(game,type){
     const H=state.teams[game.home], A=state.teams[game.away], weather=pick(WEATHER); if(!H||!A)return;
-    state.liveMatch={gameId:game.id,type,home:H.id,away:A.id,hg:0,ag:0,weather,started:performance.now(),elapsed:0,duration:120000,events:[{t:0,text:`ANPFIFF · ${weather.icon} ${weather.name}`,kind:'start'}],possession:50,shotsH:0,shotsA:0,sim:createLiveSim(H,A)};
+    state.liveMatch={
+      gameId:game.id,type,home:H.id,away:A.id,hg:0,ag:0,weather,
+      started:performance.now(),elapsed:0,matchClock:0,phase:'first',
+      duration:TOTAL_MATCH_MS,halfShown:false,secondHalf:false,
+      events:[{t:0,text:`ANPFIFF · ${weather.icon} ${weather.name}` ,kind:'start'}],
+      possession:50,shotsH:0,shotsA:0,cornersH:0,cornersA:0,fouls:0,
+      savesH:0,savesA:0,yellowH:0,yellowA:0,
+      sim:createLiveSim(H,A)
+    };
     renderLiveMatch();
-    cancelAnimationFrame(window.__liveRAF); clearInterval(window.__liveTimer); clearTimeout(window.__liveEventTimer);
+    cancelAnimationFrame(window.__liveRAF);
     window.__liveRAF=requestAnimationFrame(runLiveFrame);
   }
 
   function runLiveFrame(now){
     const lm=state.liveMatch;if(!lm)return;
     lm.elapsed=now-lm.started;
-    if(lm.elapsed>=lm.duration){lm.elapsed=lm.duration;updateLiveDOM(now);finishLiveMatch();return;}
+    if(lm.elapsed>=lm.duration){lm.elapsed=lm.duration;lm.matchClock=120000;updateLiveDOM(now);finishLiveMatch();return;}
+    if(lm.elapsed<HALF_MS){
+      lm.matchClock=lm.elapsed;lm.phase='first';
+    }else if(lm.elapsed<HALF_MS+HALF_BREAK_MS){
+      lm.matchClock=HALF_MS;lm.phase='halftime';
+      if(!lm.halfShown){
+        lm.halfShown=true;
+        addLiveEvent(`HALBZEIT · ${lm.hg}:${lm.ag} · ${Math.round(lm.possession)}% Ballbesitz`, 'halftime');
+        showHalftimeOverlay();
+      }
+      updateLiveDOM(now);
+      window.__liveRAF=requestAnimationFrame(runLiveFrame);
+      return;
+    }else{
+      if(!lm.secondHalf){lm.secondHalf=true;lm.phase='second';hideHalftimeOverlay();addLiveEvent('ANPFIFF 2. HALBZEIT · Weiter geht’s!','start');}
+      lm.matchClock=HALF_MS+(lm.elapsed-(HALF_MS+HALF_BREAK_MS));lm.phase='second';
+    }
     updateLiveSimulation(now);
     updateLiveDOM(now);
     window.__liveRAF=requestAnimationFrame(runLiveFrame);
   }
 
-  function findSimPlayer(lm,side,index){return lm.sim.players[side]?.[index]||null;}
+  function findSimPlayer(lm,side,index){return lm.sim.players[side]?.[index]||null}
   function currentHolder(lm){return findSimPlayer(lm,lm.sim.ball.side,lm.sim.ball.index)}
   function otherSide(side){return side==='home'?'away':'home'}
   function attackDir(side){return side==='home'?1:-1}
   function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
-  function nearestOpponent(lm,p){const opp=lm.sim.players[otherSide(p.side)];return opp.reduce((best,x)=>!best||distance(p,x)<distance(p,best)?x:best,null)}
+  function nearestOpponent(lm,p){
+    const opp=lm.sim.players[otherSide(p.side)]||[];
+    return opp.reduce((best,x)=>!best||distance(p,x)<distance(p,best)?x:best,null);
+  }
   function addLiveEvent(text,kind='neutral'){
     const lm=state.liveMatch;if(!lm)return;
-    lm.events.unshift({t:Math.floor(lm.elapsed/1000),text,kind});lm.events=lm.events.slice(0,8);
+    lm.events.unshift({t:Math.floor(lm.matchClock/1000),text,kind});
+    lm.events=lm.events.slice(0,12);
     updateLiveFeedOnly();
+    const label=$('#liveActionLabel');if(label){label.textContent=kind==='goal'?'TOR!':kind.toUpperCase();}
   }
-  function setupBallTravel(lm,toSide,toIndex,duration,mode){
-    const b=lm.sim.ball, holder=currentHolder(lm); b.mode=mode; b.sx=b.x;b.sy=b.y;b.tx=findSimPlayer(lm,toSide,toIndex)?.x||b.x;b.ty=findSimPlayer(lm,toSide,toIndex)?.y||b.y;b.start=performance.now();b.duration=duration;b.side=toSide;b.index=toIndex;
+  function currentGoalX(side){return side==='home'?100:0}
+
+  function setupBallTravel(lm,toSide,toIndex,duration,mode,tx=null,ty=null){
+    const b=lm.sim.ball, holder=currentHolder(lm);
+    b.mode=mode;b.sx=b.x;b.sy=b.y;
+    const target=findSimPlayer(lm,toSide,toIndex);
+    b.tx=tx??target?.x??b.x;b.ty=ty??target?.y??b.y;
+    b.start=performance.now();b.duration=duration;b.side=toSide;b.index=toIndex;b.arc=(mode==='shot'||mode==='cross'||mode==='corner')?.35:.08;
     if(holder){holder.bx=holder.x;holder.by=holder.y;}
   }
+
   function choosePassTarget(lm,holder){
-    const mates=lm.sim.players[holder.side].filter(p=>p.index!==holder.index);
-    mates.sort((a,b)=>distance(a,holder)-distance(b,holder));
-    const attacking=mates.filter(p=>attackDir(holder.side)* (p.x-holder.x)>1);
-    return pick((attacking.length?attacking:mates).slice(0,3))||holder;
+    const mates=(lm.sim.players[holder.side]||[]).filter(p=>p.index!==holder.index);
+    if(!mates.length)return null;
+    const dir=attackDir(holder.side);
+    mates.sort((a,b)=>{
+      const scoreA=dir*(a.x-holder.x)*1.5-distance(a,holder)*.25;
+      const scoreB=dir*(b.x-holder.x)*1.5-distance(b,holder)*.25;
+      return scoreB-scoreA;
+    });
+    return pick(mates.slice(0,Math.min(4,mates.length)))||mates[0];
   }
-  function chooseLiveAction(now){
-    const lm=state.liveMatch,sim=lm.sim,b=sim.ball,holder=currentHolder(lm);if(!holder)return;
-    const goalX=holder.side==='home'?100:0, goalDist=Math.abs(goalX-b.x);
-    const opp=nearestOpponent(lm,holder); const underPressure=opp&&distance(holder,opp)<11;
-    const roll=Math.random();
-    if(goalDist<24 && roll<0.34){
-      const tx=goalX===100?99:1, ty=clamp(50+(Math.random()-0.5)*38,23,77);
-      sim.action={type:'shot',side:holder.side,index:holder.index,startX:b.x,startY:b.y,tx,ty,start:now,duration:520+Math.random()*380};
-      b.mode='shot';b.sx=b.x;b.sy=b.y;b.tx=tx;b.ty=ty;b.start=now;b.duration=sim.action.duration;
-      lm[holder.side==='home'?'shotsH':'shotsA']++;
-      addLiveEvent(`SCHUSS! ${holder.name.split(' ')[0]} zieht aus ${Math.round(100-goalDist)}m ab.`,'chance');
+
+  function chooseSetPiece(lm,holder,now,type){
+    const side=holder.side, dir=attackDir(side);
+    const nearGoal=(dir>0&&holder.x>88)||(dir<0&&holder.x<12);
+    if(type==='corner'){
+      const x=dir>0?97:3, y=Math.random()<.5?8:92;
+      lm.sim.action={type:'corner',side,index:holder.index,startX:x,startY:y,tx:dir>0?83:17,ty:50,start:now,duration:1100};
+      lm.sim.ball.x=x;lm.sim.ball.y=y;lm.sim.ball.sx=x;lm.sim.ball.sy=y;lm.sim.ball.mode='corner';lm.sim.ball.tx=dir>0?78:22;lm.sim.ball.ty=50;lm.sim.ball.start=now;lm.sim.ball.duration=1100;lm.sim.ball.arc=.7;
+      lm[side==='home'?'cornersH':'cornersA']++;
+      addLiveEvent(`ECKBALL! ${side==='home'?'Katzenelnbogen':'Taunus Park'} bringt den Ball in den Strafraum.`,'corner');
       return;
     }
-    if(underPressure && roll<0.25){
-      const toSide=otherSide(holder.side);const candidates=lm.sim.players[toSide];const target=candidates.reduce((best,p)=>!best||distance(p,holder)<distance(best,holder)?p:best,null);
-      if(target){sim.action={type:'tackle',side:toSide,index:target.index,startX:b.x,startY:b.y,tx:target.x,ty:target.y,start:now,duration:340+Math.random()*220};setupBallTravel(lm,toSide,target.index,sim.action.duration,'turnover');addLiveEvent(`ZWEIKAMPF! ${target.name.split(' ')[0]} erobert den Ball.`,'tackle');return;}
+    if(type==='throw'){
+      const x=dir>0?Math.random()*90+4:Math.random()*90+6; const y=Math.random()<.5?3:97;
+      const target=choosePassTarget(lm,holder)||holder;
+      lm.sim.action={type:'throw',side,index:target.index,startX:x,startY:y,tx:target.x,ty:target.y,start:now,duration:800};
+      lm.sim.ball.x=x;lm.sim.ball.y=y;lm.sim.ball.sx=x;lm.sim.ball.sy=y;lm.sim.ball.mode='throw';lm.sim.ball.tx=target.x;lm.sim.ball.ty=target.y;lm.sim.ball.start=now;lm.sim.ball.duration=800;lm.sim.ball.arc=.45;
+      addLiveEvent(`EINWURF · ${target.name.split(' ')[0]} bekommt den Ball.`,'throw');
+      return;
     }
-    if(roll<0.72){
-      const target=choosePassTarget(lm,holder); if(target&&target!==holder){sim.action={type:'pass',side:target.side,index:target.index,startX:b.x,startY:b.y,tx:target.x,ty:target.y,start:now,duration:420+distance(holder,target)*7};setupBallTravel(lm,target.side,target.index,sim.action.duration,'pass');addLiveEvent(`${holder.name.split(' ')[0]} passt zu ${target.name.split(' ')[0]}.`,'pass');return;}
-    }
-    // dribble / carry
-    const step=(6+Math.random()*8)*attackDir(holder.side);holder.x=clamp(holder.x+step,6,94);holder.y=clamp(holder.y+(Math.random()-.5)*12,14,86);
-    sim.action={type:'dribble',side:holder.side,index:holder.index,startX:b.x,startY:b.y,tx:holder.x,ty:holder.y,start:now,duration:650+Math.random()*350};b.mode='dribble';b.sx=b.x;b.sy=b.y;b.tx=holder.x;b.ty=holder.y;b.start=now;b.duration=sim.action.duration;
-    addLiveEvent(`${holder.name.split(' ')[0]} zieht mit Tempo nach vorne.`,'dribble');
+    const tx=dir>0?78:22,ty=clamp(50+(Math.random()-.5)*25,25,75);
+    lm.sim.action={type:'free',side,index:holder.index,startX:holder.x,startY:holder.y,tx,ty,start:now,duration:950};
+    lm.sim.ball.mode='free';lm.sim.ball.sx=holder.x;lm.sim.ball.sy=holder.y;lm.sim.ball.tx=tx;lm.sim.ball.ty=ty;lm.sim.ball.start=now;lm.sim.ball.duration=950;lm.sim.ball.arc=.45;
+    addLiveEvent(`FREISTOSS · ${holder.name.split(' ')[0]} bringt ihn scharf rein.`,'free');
   }
+
+  function chooseLiveAction(now){
+    const lm=state.liveMatch,sim=lm.sim,b=sim.ball,holder=currentHolder(lm);if(!holder)return;
+    const goalX=currentGoalX(holder.side),goalDist=Math.abs(goalX-b.x),opp=nearestOpponent(lm,holder);
+    const underPressure=opp&&distance(holder,opp)<11;
+    const nearSideline=b.y<7||b.y>93, nearGoal=(holder.side==='home'?b.x>88:b.x<12);
+    const r=Math.random();
+
+    if(r<0.035){chooseSetPiece(lm,holder,now,'throw');return}
+    if((nearGoal||goalDist<20)&&r<0.16){chooseSetPiece(lm,holder,now,'corner');return}
+    if(r>=0.16&&r<0.21){chooseSetPiece(lm,holder,now,'free');return}
+    if(nearSideline&&r<0.33){chooseSetPiece(lm,holder,now,'throw');return}
+
+    if(goalDist<30 && r<0.58){
+      const tx=goalX===100?99:1, ty=clamp(50+(Math.random()-.5)*35,18,82);
+      sim.action={type:'shot',side:holder.side,index:holder.index,startX:b.x,startY:b.y,tx,ty,start:now,duration:650+Math.random()*300};
+      b.mode='shot';b.sx=b.x;b.sy=b.y;b.tx=tx;b.ty=ty;b.start=now;b.duration=sim.action.duration;b.arc=.62;
+      lm[holder.side==='home'?'shotsH':'shotsA']++;
+      addLiveEvent(`SCHUSS! ${holder.name.split(' ')[0]} zieht ab.`,'shot');return;
+    }
+
+    if(underPressure&&r<0.30){
+      const side=otherSide(holder.side), defenders=lm.sim.players[side]||[];
+      const target=defenders.reduce((best,p)=>!best||distance(p,holder)<distance(best,holder)?p:best,null);
+      if(target){
+        sim.action={type:'tackle',side,index:target.index,startX:b.x,startY:b.y,tx:target.x,ty:target.y,start:now,duration:430};
+        setupBallTravel(lm,side,target.index,430,'tackle',target.x,target.y);
+        addLiveEvent(`ZWEIKAMPF! ${target.name.split(' ')[0]} geht dazwischen.`,'tackle');return;
+      }
+    }
+
+    if(nearGoal&&r<0.76){
+      const tx=goalX===100?90:10,ty=clamp(50+(Math.random()-.5)*40,18,82);
+      const target=choosePassTarget(lm,holder)||holder;
+      sim.action={type:'cross',side:holder.side,index:holder.index,startX:b.x,startY:b.y,tx:target.x,ty:ty,start:now,duration:900};
+      b.mode='cross';b.sx=b.x;b.sy=b.y;b.tx=tx;b.ty=ty;b.start=now;b.duration=900;b.arc=.9;
+      addLiveEvent(`${holder.name.split(' ')[0]} schlägt die Flanke in den Strafraum.`,'cross');return;
+    }
+
+    if(r<0.74){
+      const target=choosePassTarget(lm,holder);
+      if(target&&target!==holder){
+        const d=distance(holder,target);
+        // Receiver moves into passing lane.
+        target.x=clamp(target.x+attackDir(holder.side)*(3+Math.random()*6),6,94);
+        sim.action={type:'pass',side:target.side,index:target.index,startX:b.x,startY:b.y,tx:target.x,ty:target.y,start:now,duration:420+d*8};
+        setupBallTravel(lm,target.side,target.index,sim.action.duration,'pass',target.x,target.y);
+        addLiveEvent(`${holder.name.split(' ')[0]} spielt den Pass auf ${target.name.split(' ')[0]}.`,'pass');return;
+      }
+    }
+
+    // Carry/dribble
+    const step=(5+Math.random()*10)*attackDir(holder.side);
+    holder.x=clamp(holder.x+step,6,94);
+    holder.y=clamp(holder.y+(Math.random()-.5)*16,10,90);
+    sim.action={type:'dribble',side:holder.side,index:holder.index,startX:b.x,startY:b.y,tx:holder.x,ty:holder.y,start:now,duration:620+Math.random()*400};
+    b.mode='dribble';b.sx=b.x;b.sy=b.y;b.tx=holder.x;b.ty=holder.y;b.start=now;b.duration=sim.action.duration;b.arc=.02;
+    addLiveEvent(`${holder.name.split(' ')[0]} nimmt Tempo auf und dribbelt.`,'dribble');
+  }
+
   function updateLiveSimulation(now){
-    const lm=state.liveMatch,sim=lm.sim,H=state.teams[lm.home],A=state.teams[lm.away],b=sim.ball;
-    const sides=['home','away'];
-    sides.forEach(side=>{
-      const players=sim.players[side]; const ballRef={x:b.x,y:b.y}; players.forEach((p,i)=>{
-        const isHolder=(side===b.side&&i===b.index&&b.mode==='hold');
-        const attack=attackDir(side);
-        const formation=side==='home'?[[8,50],[28,30],[28,70],[48,35],[53,50]][i]:[[92,50],[72,70],[72,30],[52,65],[47,50]][i];
-        const lane={x:formation[0]+clamp((ballRef.x-50)*0.15,-10,10)*attack,y:formation[1]+clamp((ballRef.y-50)*0.22,-12,12)};
-        if(!isHolder && (!sim.action || sim.action.index!==i || sim.action.side!==side)){p.x+=(lane.x-p.x)*0.045;p.y+=(lane.y-p.y)*0.045;}
-        p.x=clamp(p.x,5,95);p.y=clamp(p.y,8,92);
+    const lm=state.liveMatch,sim=lm.sim,b=sim.ball;
+    for(const side of ['home','away']){
+      const players=sim.players[side]||[];
+      players.forEach((p,i)=>{
+        const formation=side==='home'?[[8,50],[27,30],[27,70],[46,34],[50,55]][i]:[[92,50],[73,70],[73,30],[54,66],[50,45]][i];
+        const dx=clamp((b.x-50)*0.18,-10,10)*attackDir(side);
+        const dy=clamp((b.y-50)*0.22,-13,13);
+        let targetX=formation[0]+dx,targetY=formation[1]+dy;
+        const holder=(side===b.side&&i===b.index&&b.mode==='hold');
+        if(!holder){
+          // Active players chase, others keep shape.
+          if(distance(p,b)<18 || (sim.action&&sim.action.side===side&&sim.action.index===i)){targetX=b.x+(Math.random()-.5)*2;targetY=b.y+(Math.random()-.5)*2;}
+          p.x+= (targetX-p.x)*0.085; p.y+=(targetY-p.y)*0.085;
+        }
+        p.x=clamp(p.x,4,96);p.y=clamp(p.y,6,94);
       });
-    });
+    }
+
     if(sim.action){
-      const a=sim.action,prog=clamp((now-a.start)/a.duration,0,1),ease=prog<.5?2*prog*prog:1-Math.pow(-2*prog+2,2)/2;
-      b.x=a.startX+(a.tx-a.startX)*ease;b.y=a.startY+(a.ty-a.startY)*ease;
-      const actor=findSimPlayer(lm,a.side,a.index);if(actor&&a.type==='dribble'){actor.x=b.x;actor.y=b.y;}
-      if(prog>=1){resolveLiveAction(now,a);}
-    } else {
-      const h=currentHolder(lm); if(h){b.mode='hold';b.x=h.x+attackDir(h.side)*1.5;b.y=h.y-5;}
+      const a=sim.action,prog=clamp((now-a.start)/a.duration,0,1);
+      const e=prog<.5?2*prog*prog:1-Math.pow(-2*prog+2,2)/2;
+      b.x=a.startX+(a.tx-a.startX)*e;b.y=a.startY+(a.ty-a.startY)*e;
+      b.z=Math.sin(Math.PI*e)*(b.arc||0);
+      const actor=findSimPlayer(lm,a.side,a.index);
+      if(actor&&(a.type==='dribble'||a.type==='tackle')){actor.x=b.x;actor.y=b.y;}
+      if(prog>=1)resolveLiveAction(now,a);
+    }else{
+      const holder=currentHolder(lm);
+      if(holder&&b.mode==='hold'){b.x=holder.x+attackDir(holder.side)*1.2;b.y=holder.y-4;b.z=0;}
       if(now>=sim.nextDecisionAt)chooseLiveAction(now);
     }
-    // possession follows ball owner.
-    lm.possession=clamp(lm.possession+(b.side==='home'?0.05:-0.05),28,72);
+
+    // Add occasional tactical incidents, independent of current action.
+    if(!sim.nextIncidentAt)sim.nextIncidentAt=now+4000+Math.random()*6000;
+    if(now>sim.nextIncidentAt&&!sim.action){
+      const holder=currentHolder(lm);
+      if(holder&&Math.random()<0.45)addLiveEvent(`TRIBÜNENRAUSCHEN · ${holder.side==='home'?'Heimfans':'Gästeblock'} werden laut.`,'crowd');
+      sim.nextIncidentAt=now+5000+Math.random()*9000;
+    }
+    lm.possession=clamp(lm.possession+(b.side==='home'?0.09:-0.09),28,72);
   }
+
   function resolveLiveAction(now,a){
     const lm=state.liveMatch,sim=lm.sim,b=sim.ball;
     if(!sim.action)return;
+    const keeperH=sim.players.home?.[0], keeperA=sim.players.away?.[0];
     if(a.type==='shot'){
-      const attacking=state.teams[a.side==='home'?lm.home:lm.away],keeper=sim.players[otherSide(a.side)][0];
-      const shooter=findSimPlayer(lm,a.side,a.index);const power=shooter?shooter.rating:65;const pressure=keeper?Math.max(0,16-distance(keeper,{x:b.x,y:b.y})):0;const goalChance=clamp(.12+(power-55)/240-pressure/170,.05,.38);
-      if(Math.random()<goalChance){
-        if(a.side==='home')lm.hg++;else lm.ag++; if(shooter){const real=attacking.roster.find(p=>p.id===shooter.id);if(real){real.goals++;real.form=clamp(real.form+3,50,100);}}
-        addLiveEvent(`TOOOOOOR! ${shooter?.name?.split(' ')[0]||'Angreifer'} trifft! ${lm.hg}:${lm.ag}`,'goal');
-        const flash=$('#liveGoalFlash');if(flash){flash.classList.remove('show');void flash.offsetWidth;flash.classList.add('show');}
-        resetAfterGoal(a.side);
+      const keeper=otherSide(a.side)==='home'?keeperH:keeperA;
+      const shooter=findSimPlayer(lm,a.side,a.index);
+      const power=shooter?.rating||68;
+      const distToGoal=Math.abs(currentGoalX(a.side)-b.x);
+      const onTarget=0.48+clamp((power-60)/220,-.12,.14)-distToGoal/260;
+      const roll=Math.random();
+      if(roll<onTarget){
+        const saveRoll=Math.random();
+        if(saveRoll<0.30){
+          if(a.side==='home')lm.savesA++;else lm.savesH++;
+          if(keeper){keeper.x=a.side==='home'?94:6;keeper.y=b.y;keeper.saveAnim=now;}
+          addLiveEvent(`PARADE! ${keeper?.name?.split(' ')[0]||'Der Keeper'} lenkt den Ball um den Pfosten.`,'save');
+          resetForRestart(lm,otherSide(a.side),'corner',now); 
+        }else if(saveRoll<0.40){
+          addLiveEvent('PFOSTEN! Der Ball klatscht gegen den Pfosten.','chance');
+          resetForRestart(lm,otherSide(a.side),'goalKick',now);
+        }else{
+          if(a.side==='home')lm.hg++;else lm.ag++;
+          if(shooter){const real=state.teams[a.side==='home'?lm.home:lm.away].roster.find(p=>p.id===shooter.id);if(real){real.goals++;real.form=clamp(real.form+3,50,100);}}
+          addLiveEvent(`TOOOR!!! ${shooter?.name?.split(' ')[0]||'Angreifer'} trifft · ${lm.hg}:${lm.ag}`,'goal');
+          const flash=$('#liveGoalFlash');if(flash){flash.classList.remove('show');void flash.offsetWidth;flash.classList.add('show');}
+          celebrateGoal(lm,a.side,now);
+          setTimeout(()=>resetAfterGoal(a.side),900);
+          sim.action=null;return;
+        }
       }else{
-        const keeperName=state.teams[a.side==='home'?lm.away:lm.home].roster[0]?.name?.split(' ')[0]||'Keeper';
-        if(Math.random()<.5)addLiveEvent(`PARADE! ${keeperName} fischt den Schuss raus.`,'save');else addLiveEvent('KNAPP! Der Ball geht am Pfosten vorbei.','chance');
-        b.side=otherSide(a.side);b.index=0;b.mode='hold';sim.nextDecisionAt=now+500+Math.random()*500;
+        addLiveEvent(Math.random()<.55?'KNAPP! Der Abschluss geht am Tor vorbei.':'BLOCK! Die Abwehr wirft sich dazwischen.','chance');
+        resetForRestart(lm,otherSide(a.side),'goalKick',now);
       }
-    } else if(a.type==='pass'){
-      b.mode='hold';b.side=a.side;b.index=a.index;const receiver=findSimPlayer(lm,a.side,a.index);if(receiver){b.x=receiver.x;b.y=receiver.y;}sim.nextDecisionAt=now+220+Math.random()*500;
-    } else if(a.type==='tackle'){
-      b.mode='hold';b.side=a.side;b.index=a.index;sim.nextDecisionAt=now+450+Math.random()*450;
-    } else if(a.type==='dribble'){
-      b.mode='hold';b.side=a.side;b.index=a.index;sim.nextDecisionAt=now+200+Math.random()*450;
+    }else if(a.type==='pass'||a.type==='throw'){
+      b.mode='hold';b.side=a.side;b.index=a.index;b.x=a.tx;b.y=a.ty;b.z=0;sim.nextDecisionAt=now+180+Math.random()*420;
+      if(a.type==='throw')addLiveEvent(`Ball wieder im Spiel.`,'throw');
+    }else if(a.type==='cross'||a.type==='corner'||a.type==='free'){
+      // Cross/set-piece creates an immediate attacking duel or header.
+      const attacking=a.side, opponents=sim.players[otherSide(attacking)]||[];
+      const target=findSimPlayer(lm,attacking,Math.min(a.index+1,4))||currentHolder(lm);
+      if(Math.random()<0.5){
+        const shooter=target||currentHolder(lm);
+        const tx=currentGoalX(attacking)===100?98:2;
+        sim.action={type:'header',side:attacking,index:shooter?.index||4,startX:b.x,startY:b.y,tx,ty:50+(Math.random()-.5)*25,start:now,duration:600};
+        b.mode='shot';b.sx=b.x;b.sy=b.y;b.tx=tx;b.ty=50+(Math.random()-.5)*25;b.start=now;b.duration=600;b.arc=.48;
+        lm[attacking==='home'?'shotsH':'shotsA']++;
+        addLiveEvent(`KOPFBALL! ${shooter?.name?.split(' ')[0]||'Angreifer'} setzt ihn aufs Tor.`,'header');
+      }else{
+        const def=opponents[Math.floor(Math.random()*opponents.length)];
+        b.mode='hold';b.side=def?.side||otherSide(attacking);b.index=def?.index||0;b.x=def?.x||b.x;b.y=def?.y||b.y;b.z=0;sim.nextDecisionAt=now+300;
+        addLiveEvent('GEKLÄRT! Die Abwehr bekommt den Ball weg.','clear');
+      }
+    }else if(a.type==='tackle'){
+      b.mode='hold';b.side=a.side;b.index=a.index;b.z=0;sim.nextDecisionAt=now+250;
+    }else if(a.type==='dribble'||a.type==='header'){
+      if(a.type==='header'){
+        const power=state.teams[a.side==='home'?lm.home:lm.away].roster[a.index]?.rating||68;
+        if(Math.random()<0.18+(power-60)/240){
+          if(a.side==='home')lm.hg++;else lm.ag++;
+          addLiveEvent(`TOOOR!!! Kopfballtreffer · ${lm.hg}:${lm.ag}`,'goal');
+          const flash=$('#liveGoalFlash');if(flash){flash.classList.remove('show');void flash.offsetWidth;flash.classList.add('show');}
+          celebrateGoal(lm,a.side,now);setTimeout(()=>resetAfterGoal(a.side),900);sim.action=null;return;
+        }else{
+          addLiveEvent('PARADE! Der Keeper ist dran.','save');resetForRestart(lm,otherSide(a.side),'corner',now);
+        }
+      }else{
+        b.mode='hold';b.side=a.side;b.index=a.index;b.z=0;sim.nextDecisionAt=now+220+Math.random()*420;
+      }
     }
     sim.action=null;
   }
-  function resetAfterGoal(scoringSide){
-    const lm=state.liveMatch,sim=lm.sim;const concede=otherSide(scoringSide);const kickSide=concede;const kickPlayer=4;
-    const homeBases=[[8,50],[28,30],[28,70],[48,35],[53,50]], awayBases=[[92,50],[72,70],[72,30],[52,65],[47,50]];
-    sim.players.home.forEach((p,i)=>{p.x=homeBases[i][0];p.y=homeBases[i][1]});sim.players.away.forEach((p,i)=>{p.x=awayBases[i][0];p.y=awayBases[i][1]});
-    sim.ball={x:kickSide==='home'?53:47,y:50,side:kickSide,index:kickPlayer,mode:'hold',sx:kickSide==='home'?53:47,sy:50,tx:kickSide==='home'?53:47,ty:50,start:0,duration:0};sim.nextDecisionAt=performance.now()+900;
+
+  function resetForRestart(lm,side,type,now){
+    const sim=lm.sim,dir=attackDir(side);
+    if(type==='corner'){const x=dir>0?97:3,y=Math.random()<.5?7:93;sim.ball={x,y,side,index:4,mode:'hold',sx:x,sy:y,tx:x,ty:y,z:0,start:0,duration:0};addLiveEvent(`ECKBALL · ${side==='home'?'Katzenelnbogen':'Taunus Park'} rückt auf.`,'corner');}
+    else{sim.ball={x:dir>0?12:88,y:50,side,index:0,mode:'hold',sx:dir>0?12:88,sy:50,tx:dir>0?12:88,ty:50,z:0,start:0,duration:0};}
+    sim.nextDecisionAt=now+650+Math.random()*700;
   }
+  function resetAfterGoal(scoringSide){
+    const lm=state.liveMatch,sim=lm.sim,side=otherSide(scoringSide),homeBases=[[8,50],[27,30],[27,70],[46,34],[50,55]],awayBases=[[92,50],[73,70],[73,30],[54,66],[50,45]];
+    sim.players.home.forEach((p,i)=>{p.x=homeBases[i][0];p.y=homeBases[i][1]});
+    sim.players.away.forEach((p,i)=>{p.x=awayBases[i][0];p.y=awayBases[i][1]});
+    sim.ball={x:side==='home'?50:50,y:50,side,index:4,mode:'hold',sx:50,sy:50,tx:50,ty:50,z:0,start:0,duration:0};sim.nextDecisionAt=performance.now()+1100;
+  }
+  function celebrateGoal(lm,side,now){
+    const players=lm.sim.players[side]||[];
+    players.slice(1).forEach((p,i)=>{p.x=side==='home'?Math.min(92,72+i*4):Math.max(8,28-i*4);p.y=50+(i-1.5)*7;p.celebrate=now;});
+    const label=$('#liveActionLabel');if(label){label.textContent='TOR!';label.classList.add('goal');setTimeout(()=>label.classList.remove('goal'),850);}
+  }
+
   function renderLiveMatch(){
     const lm=state.liveMatch,H=state.teams[lm.home],A=state.teams[lm.away];
-    const homePlayers=lm.sim.players.home.map((p,i)=>`<div class="live-player home" data-side="home" data-index="${i}"><img src="${i===0?'assets/players/goalkeeper-yellow.png':'assets/players/outfield-white.png'}" alt=""><b>${esc(p.name.split(' ')[0])}</b></div>`).join('');
-    const awayPlayers=lm.sim.players.away.map((p,i)=>`<div class="live-player away" data-side="away" data-index="${i}"><img src="${i===0?'assets/players/goalkeeper-yellow.png':'assets/players/outfield-white.png'}" alt=""><b>${esc(p.name.split(' ')[0])}</b></div>`).join('');
-    openModal('LIVE SIMULATION',`<div class="live-score"><div><img src="${crest(H)}"><strong>${esc(H.name)}</strong></div><div><span class="live-time" id="liveTime">00:00</span><b id="liveScore">${lm.hg} : ${lm.ag}</b><small>${lm.weather.icon} ${esc(lm.weather.name)}</small></div><div><img src="${crest(A)}"><strong>${esc(A.name)}</strong></div></div><div class="live-match-badge"><span>PASS</span><span>DRIBBLING</span><span>SCHUSS</span><span>TOR</span></div><div class="live-field" id="liveField"><div class="field-mark center"></div><div class="field-mark line"></div><div class="field-mark box top"></div><div class="field-mark box bottom"></div><div class="field-mark goal left"></div><div class="field-mark goal right"></div>${homePlayers}${awayPlayers}<div class="live-ball" id="liveBall"></div><div class="live-goal-flash" id="liveGoalFlash"></div></div><div class="live-status"><div><span>Ballbesitz</span><b id="livePoss">${Math.round(lm.possession)}% · ${100-Math.round(lm.possession)}%</b></div><div><span>Schüsse</span><b id="liveShots">${lm.shotsH} · ${lm.shotsA}</b></div></div><div class="live-feed" id="liveFeed">${lm.events.map(e=>`<article class="event ${e.kind}"><small>${Math.floor(e.t/60)}:${String(e.t%60).padStart(2,'0')}</small><span>${esc(e.text)}</span></article>`).join('')}</div><div class="live-progress"><div><span>ECHTZEIT · 2:00</span><b id="liveRemaining">02:00</b></div><i><em id="liveBar"></em></i></div>`,{lock:true,full:true,kicker:'VORSTAND · LIVEBEOBACHTUNG'});
+    const makePlayers=(side,team)=>lm.sim.players[side].map((p,i)=>`<div class="live-player ${side}" data-side="${side}" data-index="${i}"><img src="${i===0?'assets/players/goalkeeper-yellow.png':'assets/players/outfield-white.png'}" alt=""><b>${esc(p.name.split(' ')[0])}</b></div>`).join('');
+    openModal('LIVE SIMULATION',`
+      <div class="live-score"><div><img src="${crest(H)}"><strong>${esc(H.name)}</strong></div><div><span class="live-time" id="liveTime">00:00</span><b id="liveScore">0 : 0</b><small id="liveHalfLabel">${esc(lm.weather.name)} · 1. HZ</small></div><div><img src="${crest(A)}"><strong>${esc(A.name)}</strong></div></div>
+      <div class="live-action-banner" id="liveActionBanner"><span id="liveActionLabel">ANPFIFF</span><small id="liveActionText">Der Ball rollt.</small></div>
+      <div class="live-field-wrap">
+        <div class="live-field" id="liveField">
+          <div class="field-mark center"></div><div class="field-mark line"></div><div class="field-mark box top"></div><div class="field-mark box bottom"></div><div class="field-mark goal left"></div><div class="field-mark goal right"></div>
+          ${makePlayers('home',H)}${makePlayers('away',A)}
+          <div class="live-ball" id="liveBall"></div>
+          <div class="live-goal-flash" id="liveGoalFlash"></div>
+          <div class="setpiece-zone" id="setpieceZone"></div>
+        </div>
+        <div class="live-minimap" id="liveMinimap"></div>
+      </div>
+      <div class="live-stat-row"><span>Ballbesitz <b id="livePoss">50% · 50%</b></span><span>Schüsse <b id="liveShots">0 · 0</b></span><span>Ecken <b id="liveCorners">0 · 0</b></span></div>
+      <div class="live-feed" id="liveFeed">${lm.events.map(e=>`<article class="event ${e.kind}"><small>0:00</small><span>${esc(e.text)}</span></article>`).join('')}</div>
+      <div class="live-progress"><div><span id="livePhaseText">1. HALBZEIT · ECHTZEIT</span><b id="liveRemaining">01:00</b></div><i><em id="liveBar"></em></i></div>
+      <div class="halftime-overlay" id="halfTimeOverlay" aria-hidden="true">
+        <div class="halftime-box"><div class="halftime-title">HALBZEIT</div><div class="halftime-score"><span>${esc(H.name)}</span><strong id="halfScore">0 : 0</strong><span>${esc(A.name)}</span></div>
+        <div class="halftime-stats"><span><b id="halfPossH">50%</b><small>Ballbesitz</small><b id="halfPossA">50%</b></span><span><b id="halfShotsH">0</b><small>Schüsse</small><b id="halfShotsA">0</b></span><span><b id="halfCornersH">0</b><small>Ecken</small><b id="halfCornersA">0</b></span></div><p>Kurze Pause · Taktik wird neu sortiert …</p></div>
+      </div>
+    </div>`,{lock:true,full:true,kicker:'VORSTAND · LIVEBEOBACHTUNG'});
     updateLiveDOM();
   }
+
+  function showHalftimeOverlay(){
+    const lm=state.liveMatch;if(!lm)return;const o=$('#halfTimeOverlay');if(!o)return;
+    o.classList.add('show');o.setAttribute('aria-hidden','false');
+    const h=Math.round(lm.possession),a=100-h;
+    $('#halfScore')&&( $('#halfScore').textContent=`${lm.hg} : ${lm.ag}` );
+    $('#halfPossH')&&( $('#halfPossH').textContent=`${h}%` ); $('#halfPossA')&&( $('#halfPossA').textContent=`${a}%` );
+    $('#halfShotsH')&&( $('#halfShotsH').textContent=lm.shotsH ); $('#halfShotsA')&&( $('#halfShotsA').textContent=lm.shotsA );
+    $('#halfCornersH')&&( $('#halfCornersH').textContent=lm.cornersH ); $('#halfCornersA')&&( $('#halfCornersA').textContent=lm.cornersA );
+  }
+  function hideHalftimeOverlay(){const o=$('#halfTimeOverlay');if(o){o.classList.remove('show');o.setAttribute('aria-hidden','true');}}
   function updateLiveFeedOnly(){const feed=$('#liveFeed'),lm=state.liveMatch;if(feed&&lm)feed.innerHTML=lm.events.map(e=>`<article class="event ${e.kind}"><small>${Math.floor(e.t/60)}:${String(e.t%60).padStart(2,'0')}</small><span>${esc(e.text)}</span></article>`).join('');}
   function updateLiveDOM(){
-    const lm=state.liveMatch;if(!lm)return; const left=Math.max(0,lm.duration-lm.elapsed),now=performance.now();
-    const time=$('#liveTime'),score=$('#liveScore'),rem=$('#liveRemaining'),bar=$('#liveBar'),poss=$('#livePoss'),shots=$('#liveShots');
-    if(time)time.textContent=liveClock(lm.elapsed); if(score)score.textContent=`${lm.hg} : ${lm.ag}`; if(rem)rem.textContent=liveClock(left); if(bar)bar.style.width=`${clamp(lm.elapsed/lm.duration*100,0,100)}%`; if(poss)poss.textContent=`${Math.round(lm.possession)}% · ${100-Math.round(lm.possession)}%`; if(shots)shots.textContent=`${lm.shotsH} · ${lm.shotsA}`;
-    ['home','away'].forEach(side=>lm.sim.players[side].forEach((p,i)=>{const el=$(`.live-player[data-side="${side}"][data-index="${i}"]`);if(el){el.style.left=`${p.x}%`;el.style.top=`${p.y}%`}}));
-    const b=lm.sim.ball,ball=$('#liveBall');if(ball){ball.style.left=`${b.x}%`;ball.style.top=`${b.y}%`;ball.classList.toggle('in-flight',b.mode==='pass'||b.mode==='shot');}
+    const lm=state.liveMatch;if(!lm)return;
+    const left=Math.max(0,120000-lm.matchClock);
+    const time=$('#liveTime'),score=$('#liveScore'),rem=$('#liveRemaining'),bar=$('#liveBar'),poss=$('#livePoss'),shots=$('#liveShots'),corners=$('#liveCorners');
+    if(time)time.textContent=liveClock(lm.matchClock);
+    if(score)score.textContent=`${lm.hg} : ${lm.ag}`;
+    if(rem)rem.textContent=lm.phase==='halftime'?'PAUSE':liveClock(left);
+    if(bar)bar.style.width=`${clamp(lm.matchClock/120000*100,0,100)}%`;
+    if(poss)poss.textContent=`${Math.round(lm.possession)}% · ${100-Math.round(lm.possession)}%`;
+    if(shots)shots.textContent=`${lm.shotsH} · ${lm.shotsA}`;
+    if(corners)corners.textContent=`${lm.cornersH} · ${lm.cornersA}`;
+    const half=$('#liveHalfLabel'); if(half)half.textContent=`${esc(lm.weather.name)} · ${lm.phase==='second'?'2. HZ':lm.phase==='halftime'?'HALBZEIT':'1. HZ'}`;
+    const phase=$('#livePhaseText'); if(phase)phase.textContent=lm.phase==='second'?'2. HALBZEIT · ECHTZEIT':lm.phase==='halftime'?'HALBZEIT':'1. HALBZEIT · ECHTZEIT';
+    ['home','away'].forEach(side=>lm.sim.players[side].forEach((p,i)=>{const el=$(`.live-player[data-side="${side}"][data-index="${i}"]`);if(el){el.style.left=`${p.x}%`;el.style.top=`${p.y}%`;el.classList.toggle('active',side===lm.sim.ball.side&&i===lm.sim.ball.index);if(p.celebrate&&performance.now()-p.celebrate<1000)el.classList.add('celebrate');else el.classList.remove('celebrate')}}));
+    const b=lm.sim.ball,ball=$('#liveBall');
+    if(ball){ball.style.left=`${b.x}%`;ball.style.top=`${b.y}%`;ball.style.setProperty('--ballZ',String(b.z||0));ball.classList.toggle('in-flight',b.mode!=='hold');}
+    const action=lm.sim.action,label=$('#liveActionLabel'),text=$('#liveActionText');
+    if(label)label.textContent=action?({pass:'PASS',dribble:'DRIBBLING',shot:'SCHUSS',tackle:'ZWEIKAMPF',corner:'ECKBALL',free:'FREISTOSS',throw:'EINWURF',cross:'FLANKE',header:'KOPFBALL'}[action.type]||action.type.toUpperCase()):'LIVE';
+    if(text)text.textContent=action?`Ball unterwegs · ${action.type==='shot'?'Torabschluss!':'Spielzug läuft …'}`:'Spielaufbau';
     updateLiveFeedOnly();
-  }
-  function finishLiveMatch(){
-    const lm=state.liveMatch;if(!lm)return; cancelAnimationFrame(window.__liveRAF); clearInterval(window.__liveTimer);clearTimeout(window.__liveEventTimer);
-    const game=findGame(lm.gameId,lm.type),H=state.teams[lm.home],A=state.teams[lm.away]; if(!game){state.liveMatch=null;closeModal();render();return;}
-    applyFinalResult(game,lm.hg,lm.ag,lm.weather,lm.type,lm.shotsH,lm.shotsA); state.lastMatch={...lm,finished:Date.now(),sim:undefined};state.liveMatch=null;
-    const win=H.id===state.userTeamId?lm.hg>lm.ag:lm.ag>lm.hg,draw=lm.hg===lm.ag;addNews('Spiel beendet',`${H.name} ${lm.hg}:${lm.ag} ${A.name}`,'result');saveState();$('#modalRoot').innerHTML='';render();toast(draw?'Remis':win?'Sieg!':'Niederlage',`${H.name} ${lm.hg}:${lm.ag} ${A.name}`);
   }
 
   function findGame(id,type){

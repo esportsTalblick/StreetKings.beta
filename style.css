@@ -79,3 +79,75 @@ body{font-family:'Barlow Condensed',system-ui,sans-serif}
 @media (max-width:380px){.team-select-grid{grid-template-columns:1fr}.live-field{height:330px!important}.live-player{width:38px;height:50px}.live-player img{width:34px;height:34px}.live-player b{font-size:6px}.home-logo-sheet{max-width:255px}}
 
 .kit-showcase{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.kit-showcase>div{display:grid;justify-items:center;gap:3px;padding:7px;background:#0d1415;border:1px solid #272e2f;border-radius:9px}.kit-showcase img{width:68px;height:72px;object-fit:contain}.kit-showcase small{font-size:7px;color:#8c9696;font-weight:900;letter-spacing:.08em}.kit-sponsor-line{display:grid;grid-template-columns:auto 1fr 55px;align-items:center;gap:8px;margin-top:8px;padding:7px 8px;background:#111715;border:1px solid #333b35;border-radius:8px}.kit-sponsor-line span{font-size:7px;color:#7c8784;letter-spacing:.08em}.kit-sponsor-line b{font-size:10px;color:var(--gold)}.kit-sponsor-line img{width:54px;height:28px;object-fit:contain;background:#f4f4f4;border-radius:4px;padding:2px}
+
+
+/* PATCH V4 — native phone emoji controls + dynamic match engine */
+.emoji-icon{display:grid;place-items:center;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-size:26px;line-height:1;filter:none}
+.bottom-nav .emoji-icon{font-size:25px}
+.quick-grid>button>span .emoji-icon{font-size:29px}
+.menu-grid>button>span .emoji-icon{font-size:28px}
+.region-list .emoji-mini{width:34px;display:grid;place-items:center}.region-list .emoji-mini .emoji-icon{font-size:25px}
+
+.bottom-nav button span{display:grid;place-items:center;height:32px}
+.bottom-nav button.active .emoji-icon{transform:translateY(-1px) scale(1.04)}
+
+.live-action-banner{margin:9px 0 8px;padding:9px 11px;background:linear-gradient(90deg,#141a17,#0c100f);border:1px solid #3d473f;border-radius:9px;display:flex;justify-content:space-between;align-items:center;gap:8px;box-shadow:inset 0 0 0 1px rgba(244,208,63,.03)}
+.live-action-banner span{font-family:"Press Start 2P";font-size:10px;color:var(--gold);letter-spacing:.3px}
+.live-action-banner span.goal{animation:goalLabel .75s ease;color:#fff}
+.live-action-banner small{color:#9da5a1;font-size:10px}
+
+.live-field-wrap{position:relative;margin-top:8px}
+.live-field{height:340px!important;background:
+linear-gradient(180deg,rgba(19,66,40,.88),rgba(25,97,54,.96)),
+repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 25px,transparent 25px 50px)!important;
+border-color:#4c7857!important;box-shadow:inset 0 0 35px rgba(0,0,0,.25),0 8px 22px rgba(0,0,0,.22)}
+.live-field .field-mark{border-color:rgba(240,250,240,.72)!important}
+.live-field .field-mark.center{width:84px!important;height:84px!important;left:calc(50% - 42px)!important;top:calc(50% - 42px)!important}
+.live-field .field-mark.box{width:22%!important;height:40%!important;top:30%!important}
+.live-player{transition:none!important;will-change:left,top,transform;animation:none!important}
+.live-player.home{--shirt:#f4d03f}.live-player.away{--shirt:#3b82f6}
+.live-player img{width:43px!important;height:46px!important;image-rendering:pixelated!important}
+.live-player b{font-family:"Press Start 2P";font-size:6px!important;padding:3px 4px!important;background:rgba(5,10,8,.86)!important}
+.live-player.active{z-index:8;filter:drop-shadow(0 0 7px rgba(244,208,63,.72))}
+.live-player.active:after{content:"";position:absolute;left:50%;top:-5px;width:10px;height:10px;background:var(--gold);clip-path:polygon(50% 100%,0 0,100% 0);transform:translateX(-50%);animation:activeArrow .45s ease-in-out infinite alternate}
+.live-player.celebrate{animation:celebrate .65s ease-in-out 2}
+.live-ball{transition:none!important;will-change:left,top,transform;animation:none!important;width:11px!important;height:11px!important;border:2px solid #1a2220!important}
+.live-ball.in-flight{box-shadow:0 0 0 2px rgba(255,255,255,.18),0 4px 12px rgba(0,0,0,.58);animation:ballTrail .22s linear infinite!important;transform:translate(-50%,-50%) translateY(calc(var(--ballZ,0)*-22px)) scale(calc(1 + var(--ballZ,0)*.5))}
+.live-goal-flash{background:radial-gradient(circle,rgba(244,208,63,.85),rgba(244,208,63,.12) 48%,transparent 70%)!important}
+.setpiece-zone{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none;z-index:2}
+.live-minimap{display:none}
+.live-stat-row{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:6px!important;margin-top:8px}
+.live-stat-row>span{padding:8px 6px!important;background:#09100d!important;border:1px solid #1d2a23!important;border-radius:8px!important;text-align:center!important;color:#7f9290!important;font-size:8px}
+.live-stat-row b{display:block;color:#e7ece9;font-size:10px;margin-top:2px}
+.live-feed{max-height:126px!important}
+.event{animation:eventIn .23s ease}
+.event.goal{border-color:#806c19!important;background:linear-gradient(90deg,rgba(244,208,63,.10),transparent)!important}
+.event.corner,.event.free,.event.throw{border-left:3px solid var(--gold)}
+.event.shot,.event.cross,.event.header,.event.chance{border-left:3px solid #f59e0b}
+.event.tackle{border-left:3px solid #6fb7ff}
+.event.save{border-left:3px solid #22c55e}
+.event.halftime{border-left:3px solid #fff;background:rgba(255,255,255,.04)}
+
+.halftime-overlay{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:14px;background:rgba(3,6,5,.82);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:.24s}
+.halftime-overlay.show{opacity:1;pointer-events:auto}
+.halftime-box{width:min(94%,360px);padding:19px 14px;border:1px solid #555b58;border-radius:12px;background:linear-gradient(145deg,#121714,#080c0a);box-shadow:0 18px 40px rgba(0,0,0,.42);text-align:center}
+.halftime-title{font-family:"Press Start 2P";font-size:18px;color:var(--gold);margin-bottom:13px}
+.halftime-score{display:grid;grid-template-columns:1fr auto 1fr;gap:9px;align-items:center;font-size:10px}
+.halftime-score strong{font-family:"Press Start 2P";font-size:27px;color:#f4f7f6}
+.halftime-stats{margin-top:18px;border-top:1px solid #2a312d;border-bottom:1px solid #2a312d;padding:10px 0;display:grid;gap:8px}
+.halftime-stats span{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;gap:8px}
+.halftime-stats b{font-size:14px;color:#e9edeb}.halftime-stats small{font-size:8px;color:#7f8985}
+.halftime-box p{margin:14px 0 0;color:#89928d;font-size:10px}
+
+@keyframes activeArrow{from{transform:translate(-50%,-2px)}to{transform:translate(-50%,3px)}}
+@keyframes ballTrail{0%{box-shadow:0 0 0 0 rgba(244,208,63,.0),-4px 2px 6px rgba(255,255,255,.10)}100%{box-shadow:0 0 0 2px rgba(244,208,63,.10),-13px 5px 10px rgba(255,255,255,.0)}}
+@keyframes celebrate{0%,100%{transform:translate(-50%,-50%) scale(1) rotate(0deg)}50%{transform:translate(-50%,-58%) scale(1.07) rotate(-4deg)}}
+@keyframes goalLabel{0%{transform:scale(.8)}45%{transform:scale(1.18)}100%{transform:scale(1)}}
+
+.team-select-card img{image-rendering:auto}
+@media(max-width:390px){
+  .live-field{height:315px!important}
+  .live-player img{width:38px!important;height:42px!important}
+  .live-action-banner{padding:8px}
+  .halftime-title{font-size:16px}
+}
