@@ -100,7 +100,7 @@
   const state = {
     version:'4.0.0', firstRun:true, teamChosen:false, manager:'Manager', active:'home', season:1, week:1,
     date:new Date('2026-08-15T18:00:00'), userTeamId:null, teams:{}, leagues:{}, market:[], coaches:[], news:[],
-    friendlies:[], marketFilter:'all', tactic:'1-2-2', tactics:{pressing:62,risk:50,tempo:58,passing:56}, notifications:2,
+    friendlies:[], transferOffers:[], transferInquiries:[], lastSavedAt:null, marketFilter:'all', tactic:'1-2-2', tactics:{pressing:62,risk:50,tempo:58,passing:56}, notifications:2,
     trophies:0, fans:77, lastMatch:null, liveMatch:null, lineupPositions:{}
   };
 
@@ -169,7 +169,7 @@
   }
 
   function buildTeams(){
-    const teams=TEAM_NAMES.map((x,i)=>teamObj(x[0],x[1],i<9?74:i<18?68:62,i<9?1:i<18?2:3,i===0?'#39f2a5':null));
+    const teams=TEAM_NAMES.map((x,i)=>teamObj(x[0],x[1],i<9?74:i<18?68:62,i<9?1:i<18?2:3,i===0?'#39f2a5':null)); teams.forEach(tm=>tm.roster.forEach(p=>{p.teamId=tm.id;p.teamColor=tm.teamColor;}));
     const talblick=teams.find(t=>t.name==='FC Talblick');
     applyTalblickRoster(talblick);
     return teams;
@@ -266,20 +266,23 @@
     }
     Object.values(state.teams||{}).forEach(t=>{t.logo=clubLogoForTeam(t)||('assets/clubs/'+slugify(t.name)+'.png');});
     if(state.teams && !state.teams[state.userTeamId]) state.userTeamId=Object.keys(state.teams)[0];
-    state.market=Array.isArray(state.market)?state.market:generateMarket(48); if(state.market.length<30) state.market=generateMarket(48); state.coaches=Array.isArray(state.coaches)?state.coaches:generateCoaches(); state.teamChosen = !!state.teamChosen; state.fans = state.fans || 77; state.news=Array.isArray(state.news)?state.news:[]; state.friendlies=Array.isArray(state.friendlies)?state.friendlies:[];
+    state.market=Array.isArray(state.market)?state.market:generateMarket(48); if(state.market.length<30) state.market=generateMarket(48); state.coaches=Array.isArray(state.coaches)?state.coaches:generateCoaches(); state.transferOffers=Array.isArray(state.transferOffers)?state.transferOffers:[]; state.transferInquiries=Array.isArray(state.transferInquiries)?state.transferInquiries:[]; state.lastSavedAt=state.lastSavedAt||null; state.teamChosen = !!state.teamChosen; state.fans = state.fans || 77; state.news=Array.isArray(state.news)?state.news:[]; state.friendlies=Array.isArray(state.friendlies)?state.friendlies:[];
     state.date=new Date(state.date||Date.now());
     Object.values(state.teams||{}).forEach(t=>{
-      t.roster ||= makeRoster(t.teamColor||'#39f2a5',t.quality||65); t.stats ||= {played:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,homeRevenue:0,shots:0,xg:0}; t.form ||= ['W','D','W','L','S'];
+      t.roster ||= makeRoster(t.teamColor||'#39f2a5',t.quality||65); t.roster.forEach(p=>{p.teamId=t.id;p.teamColor=p.teamColor||t.teamColor;}); t.stats ||= {played:0,wins:0,draws:0,losses:0,gf:0,ga:0,points:0,homeRevenue:0,shots:0,xg:0}; t.form ||= ['W','D','W','L','S'];
       t.stadium ||= {name:`${t.name} Street Arena`,capacity:180,level:1,upgrades:{}}; t.stadium.upgrades ||= {}; t.youth ||= 1; t.budget ||= 120000; t.logo=clubLogoForTeam(t)||t.logo||`assets/clubs/${slugify(t.name)}.png`;
       applyTalblickRoster(t);
     });
     Object.values(state.leagues||{}).forEach(l=>{l.standings ||= {};l.schedule ||= [];});
-    state.liveMatch=null; state.version='4.0.0';
+    state.liveMatch=null; state.version='4.0.0'; state.transferOffers.forEach(o=>{if(o.status==='pending'&&!o.responseAt)o.responseAt=Date.now()+9000;}); state.transferInquiries.forEach(q=>{if(q.status==='pending'&&!q.responseAt)q.responseAt=Date.now()+6500;});
   }
 
   function saveState(){
+    state.lastSavedAt=Date.now();
+    state.transferOffers=Array.isArray(state.transferOffers)?state.transferOffers:[];
+    state.transferInquiries=Array.isArray(state.transferInquiries)?state.transferInquiries:[];
     const clean={...state,liveMatch:null,date:new Date(state.date).toISOString()};
-    localStorage.setItem(APP_KEY,JSON.stringify(clean));
+    try{localStorage.setItem(APP_KEY,JSON.stringify(clean));return true;}catch(e){console.warn('Save fehlgeschlagen',e);return false;}
   }
 
   function currentTeam(){return state.teams[state.userTeamId];}
@@ -421,24 +424,56 @@
 
   function renderMarket(){
     const filters=['all','GK','CB','LB','RB','MF','LW','RW','ST'];
-    let list=state.market.filter(p=>state.marketFilter==='all'||p.pos===state.marketFilter).slice().sort((a,b)=>b.rating-a.rating);
-    return `${pageHead('Marktplatz','Live-Angebote · Auktionen · Talente',`<button class="gold-btn" data-market-refresh>REFRESH</button>`)}
-      <div class="market-live"><span class="live-dot"></span><strong>LIVE-MARKT</strong><span>Preise bewegen sich automatisch</span></div>
+    const clubTargets=[];
+    Object.values(state.teams).forEach(tm=>{
+      if(tm.id===state.userTeamId)return;
+      (tm.roster||[]).forEach(p=>clubTargets.push({...p,sourceType:'club',sourceTeamId:tm.id,sourceTeamName:tm.name}));
+    });
+    const freeTargets=(state.market||[]).map(p=>({...p,sourceType:'market',sourceTeamId:null,sourceTeamName:'Freier Markt'}));
+    let list=[...clubTargets,...freeTargets].filter(p=>state.marketFilter==='all'||p.pos===state.marketFilter).sort((a,b)=>{
+      const ta=a.sourceTeamName==='FC Talblick'?1:0, tb=b.sourceTeamName==='FC Talblick'?1:0;
+      return ta!==tb?tb-ta:b.rating-a.rating;
+    });
+    const top=list.slice(0,90);
+    return `${pageHead('Marktplatz','Keine Sofortkäufe · jeder Transfer ist eine Verhandlung',`<button class="gold-btn" data-market-refresh>REFRESH</button>`)}
+      <div class="market-live"><span class="live-dot"></span><strong>LIVE-TRANSFERMARKT</strong><span>Vereine reagieren auf Angebote und Anfragen.</span></div>
       ${card('Filter',`<div class="scroll-tabs">${filters.map(f=>`<button class="seg ${state.marketFilter===f?'active':''}" data-marketfilter="${f}">${f==='all'?'Alle':marketLabel(f)}</button>`).join('')}</div>`)}
-      ${card('Spieler',`<div class="market-list">${list.map(p=>`<article class="market-row"><img src="${playerAvatar(p,p.teamColor,true)}"><div class="market-player"><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.age} J. · Form ${p.form}%</span><div><b>${p.rating}</b><small>Marktwert</small></div></div><div class="market-price"><b>${money(p.currentPrice)}</b><small>${Math.max(0,Math.ceil((p.listingEndsAt-Date.now())/1000))}s</small><button class="small-btn gold" data-buy="${p.id}">SOFORT</button><button class="small-btn" data-bid="${p.id}">BIETEN</button></div><button class="heart ${p.watch?'on':''}" data-watch="${p.id}">♥</button></article>`).join('')}</div>`)}
-      ${card('Live-Auktionen',`<div class="auction-box"><div class="auction-head"><span class="live-dot"></span><strong>Nächstes Highlight</strong><span class="danger-txt">${Math.max(0,Math.ceil((state.market[0]?.listingEndsAt-Date.now())/1000))}s</span></div><p>Spieler wechseln live den Preis. Ein Gebot blockiert dein Budget erst bei erfolgreichem Abschluss.</p><button class="ghost-btn wide" data-market-refresh>Neue Spieler suchen</button></div>`)}
+      ${card('Spieler',`<div class="market-list">${top.map(p=>`<article class="market-row"><img src="${playerAvatar(p,p.teamColor,true)}"><div class="market-player"><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.age||'—'} J. · Form ${p.form||'—'}%</span><div><b>${p.rating}</b><small>${esc(p.sourceTeamName||'Freier Markt')}</small></div></div><div class="market-price"><b>${money(p.value||p.currentPrice||0)}</b><small>Marktwert</small><button class="small-btn gold" data-offer-player="${p.id}">ANGEBOT</button><button class="small-btn" data-inquire-player="${p.id}">ANFRAGE</button></div><button class="heart ${p.watch?'on':''}" data-watch="${p.id}">♥</button></article>`).join('')}</div>`)}
+      ${card('Transfer-Regeln',`<div class="transfer-rules"><span>📄 Keine Sofortkäufe</span><span>🤝 Verein kann ablehnen oder kontern</span><span>📅 Antworttermin wird im Kalender gespeichert</span><span>🔄 Tauschspieler nur bei Vereins-Transfers</span></div>`)}
     `;
   }
 
   function sponsorAsset(id){const s=SPONSORS.find(x=>x.id===id);return s?.asset||'assets/sponsors/banner.png';}
 
+  function transferTargetList(){
+    const current=state.userTeamId;
+    const clubTargets=[];
+    Object.values(state.teams).forEach(tm=>{
+      if(tm.id===current)return;
+      (tm.roster||[]).forEach(p=>clubTargets.push({...p,sourceType:'club',sourceTeamId:tm.id,sourceTeamName:tm.name}));
+    });
+    const freeTargets=(state.market||[]).map(p=>({...p,sourceType:'market',sourceTeamId:null,sourceTeamName:'Freier Markt'}));
+    const talblick=clubTargets.filter(p=>p.sourceTeamName==='FC Talblick');
+    const rest=clubTargets.filter(p=>p.sourceTeamName!=='FC Talblick').sort((a,b)=>b.rating-a.rating);
+    return [...talblick,...rest.slice(0,70),...freeTargets.slice(0,48)];
+  }
+  function transferStatusLabel(s){return ({pending:'PRÜFUNG',countered:'GEGENANGEBOT',accepted:'ANGENOMMEN',rejected:'ABGELEHNT',expired:'ABGELAUFEN'}[s]||s||'—');}
+  function renderTransferOfferRow(o){
+    const p=o.playerSnapshot||{},due=o.responseAt?Math.max(0,Math.ceil((o.responseAt-Date.now())/1000)):0;
+    const action=o.status==='countered'?`<button class="small-btn gold" data-accept-counter="${o.id}">ANNEHMEN</button>`:'';
+    return `<article class="offer-row ${o.status}"><div class="offer-main"><strong>${esc(p.name||'Spieler')}</strong><span>${marketLabel(p.pos)} · ${p.rating||'—'} · ${esc(o.sourceTeamName||'Berater')}</span><small>${money(o.fee||0)} Ablöse · ${money(o.salary||0)}/W · ${o.years||1} J.</small></div><div class="offer-state"><b>${transferStatusLabel(o.status)}</b><small>${o.status==='pending'?`Antwort in ${due}s`:o.status==='countered'?`Forderung ${money(o.counterFee||0)}`:esc(o.responseText||'')}</small>${action}</div></article>`;
+  }
+  function renderTransferCalendar(){
+    const all=[...(state.transferOffers||[]),...(state.transferInquiries||[])].filter(x=>x.status==='pending').sort((a,b)=>(a.responseAt||0)-(b.responseAt||0)).slice(0,8);
+    return card('TRANSFER-KALENDER',`<div class="transfer-calendar"><div class="calendar-now"><span>SPIELTAG</span><b>${dateDE(state.date)}</b><small>${timeDE(state.date)}</small></div>${all.length?all.map(o=>`<div class="calendar-item"><span class="cal-day">${dateDE(new Date(state.date.getTime()+((o.dueGameDays||1)*86400000)))}</span><div><strong>${esc(o.type==='inquiry'?'Anfrage':'Angebot · '+(o.playerSnapshot?.name||'Spieler'))}</strong><small>${esc(o.sourceTeamName||'Berater')} · Antwort ausstehend</small></div><span class="cal-dot"></span></div>`).join(''):'<div class="empty">Keine offenen Termine.</div>'}</div>`);
+  }
   function renderTransfers(){
-    const t=currentTeam();
-    const outgoing=t.roster.filter((p,i)=>i>=5).slice(0,6);
-    return `${pageHead('Transfers','Kaderbewegungen · Verkauf · Einkauf',`<button class="gold-btn" data-page="market">MARKTPLATZ</button>`)}
-      ${card('Dein Kader',`<div class="transfer-summary"><span><b>${t.roster.length}/12</b><small>KADER</small></span><span><b>${money(t.budget)}</b><small>BUDGET</small></span><span><b>${state.market.length}</b><small>ANGEBOTE</small></span></div>`)}
-      ${card('Verkaufen',`<div class="player-list">${outgoing.map(p=>`<article class="player-row"><button class="player-main" data-player="${p.id}"><img src="${playerAvatar(p,t.teamColor,true)}"><div><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.rating} OVR</span></div></button><b>${money(p.value)}</b><button class="small-btn danger" data-sell="${p.id}">VERK.</button></article>`).join('')||'<div class="empty">Keine Bankspieler verfügbar.</div>'}</div>`)}
-      ${card('Schnellzugriff',`<div class="action-grid"><button class="action-tile" data-page="market"><b>48+</b><small>MARKT</small></button><button class="action-tile" data-page="team"><b>12</b><small>KADER</small></button><button class="action-tile" data-page="sponsors"><b>€</b><small>SPONSOR</small></button></div>`)}
+    const t=currentTeam(),targets=transferTargetList(),offers=[...(state.transferOffers||[])].sort((a,b)=>(b.sentAt||0)-(a.sentAt||0));
+    return `${pageHead('Transfers','Verhandeln · Anfragen · Tausch · Vertragsangebote',`<button class="gold-btn" data-page="market">MARKT</button>`)}
+      ${card('Dein Kader',`<div class="transfer-summary"><span><b>${t.roster.length}/12</b><small>KADER</small></span><span><b>${money(t.budget)}</b><small>BUDGET</small></span><span><b>${offers.filter(x=>['pending','countered'].includes(x.status)).length}</b><small>OFFENE VORGÄNGE</small></span></div>`)}
+      ${renderTransferCalendar()}
+      ${card('ANGEBOTE & ANTWORTEN',`<div class="offer-list">${offers.map(renderTransferOfferRow).join('')||'<div class="empty">Noch keine Angebote. Öffne den Marktplatz und verhandle mit einem Verein.</div>'}</div>`)}
+      ${card('TRANSFER-LISTE · VEREINE + FREIER MARKT',`<div class="transfer-target-list">${targets.slice(0,88).map(p=>`<article class="transfer-target"><img src="${playerAvatar(p,p.teamColor,true)}"><div class="transfer-target-info"><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.age||'—'} J. · ${p.rating} OVR</span><small>${esc(p.sourceTeamName||'Freier Markt')} · Marktwert ${money(p.value||0)}</small></div><div class="transfer-target-actions"><button class="small-btn gold" data-offer-player="${p.id}">ANGEBOT</button><button class="small-btn" data-inquire-player="${p.id}">ANFRAGE</button>${p.sourceType==='club'?`<button class="small-btn" data-trade-player="${p.id}">HANDEL</button>`:''}</div></article>`).join('')}</div>`)}
     `;
   }
 
@@ -498,9 +533,10 @@
   }
 
   function renderSettings(){
-    const t=currentTeam(); return `${pageHead('Einstellungen','Profile, Savegames und Spielstart')}
-      ${card('Managerprofil',`<label class="input-label">Managername<input class="text-input" id="managerName" value="${esc(state.manager)}"></label><label class="input-label">Vereinsname<input class="text-input" id="teamName" value="${esc(t.name)}"></label><label class="input-label">Arena<input class="text-input" id="stadiumName" value="${esc(t.stadium.name)}"></label><button class="gold-btn wide" data-settings-save>SPEICHERN</button>`)}
-      ${card('Spielstand',`<div class="action-grid"><button class="action-tile" data-export><b>↑</b><small>EXPORT</small></button><button class="action-tile" data-import><b>↓</b><small>IMPORT</small></button><button class="action-tile danger-tile" data-reset><b>↻</b><small>NEUES SPIEL</small></button></div>`)}
+    const t=currentTeam(),saved=state.lastSavedAt?`${dateDE(new Date(state.lastSavedAt))} · ${timeDE(new Date(state.lastSavedAt))}`:'noch nie';
+    return `${pageHead('Einstellungen','Profile, Savegames und Spielstart')}
+      ${card('Managerprofil',`<label class="input-label">Managername<input class="text-input" id="managerName" value="${esc(state.manager)}"></label><label class="input-label">Vereinsname<input class="text-input" id="teamName" value="${esc(t.name)}"></label><label class="input-label">Arena<input class="text-input" id="stadiumName" value="${esc(t.stadium.name)}"></label><button class="gold-btn wide" data-settings-save>SPEICHERN</button><div class="save-status">Zuletzt gespeichert: <b>${esc(saved)}</b></div>`)}
+      ${card('Spielstand',`<div class="action-grid"><button class="action-tile" data-export><b>↑</b><small>EXPORTIEREN</small></button><button class="action-tile" data-import><b>↓</b><small>IMPORTIEREN</small></button><button class="action-tile danger-tile" data-reset><b>↻</b><small>NEUES SPIEL</small></button></div><div class="save-help">Export erstellt eine echte JSON-Datei. Import übernimmt den Spielstand nach einer Prüfung und startet die App neu.</div>`)}
       ${card('Über das Spiel',`<p class="muted">Street Kings: Manager · Browser Edition · Katzenelnbogen · 5er Street Soccer · Touch-first UI</p>`)}
     `;
   }
@@ -1041,15 +1077,55 @@
     }
   }
 
-  function buyPlayer(id){
-    const t=currentTeam(),p=state.market.find(x=>x.id===id);if(!p)return;if(t.roster.length>=12){toast('Kader voll','Maximal 12 Spieler.');return;}if(t.budget<p.currentPrice){toast('Nicht genug Budget',money(p.currentPrice));return;}
-    t.budget-=p.currentPrice;t.roster.push({...p,id:uid('p'),teamId:t.id,teamColor:t.teamColor,currentPrice:undefined,listingEndsAt:undefined});state.market=state.market.filter(x=>x.id!==id);addNews('Neuzugang',`${p.name} unterschreibt bei ${t.name}.`,'market');saveState();render();toast('Transfer abgeschlossen',p.name);
+  function findTransferTarget(id){
+    const marketHit=state.market.find(p=>p.id===id); if(marketHit)return {...marketHit,sourceType:'market',sourceTeamId:null,sourceTeamName:'Freier Markt'};
+    for(const tm of Object.values(state.teams)){const p=(tm.roster||[]).find(x=>x.id===id);if(p)return {...p,sourceType:'club',sourceTeamId:tm.id,sourceTeamName:tm.name};}
+    return null;
+  }
+  function parseNum(sel,fallback=0){const raw=String($(sel)?.value||'').replace(/\./g,'').replace(',','.');const n=Number(raw);return Number.isFinite(n)?n:fallback;}
+  function ownTradeCandidates(){return currentTeam().roster.slice(5).map(p=>`<option value="${p.id}">${esc(p.name)} · ${marketLabel(p.pos)} · ${money(p.value)}</option>`).join('');}
+  function offerModal(playerId,mode='offer'){
+    const p=findTransferTarget(playerId);if(!p)return;
+    const suggested=Math.max(10000,Math.round((p.value||p.currentPrice||50000)*0.82)),suggestedSalary=Math.max(900,Math.round((p.salary||2200)*1.12));
+    const sourceLabel=p.sourceType==='club'?p.sourceTeamName:'Freier Markt / Spielerberater';
+    if(mode==='inquiry'){
+      openModal(`ANFRAGE · ${esc(p.name)}`,`<div class="contract-paper"><div class="contract-head"><span>STREET KINGS TRANSFERBÜRO</span><b>UNVERBINDLICH</b></div><div class="contract-club"><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.rating} OVR · ${esc(sourceLabel)}</span></div><label class="input-label">Nachricht<textarea class="text-input contract-textarea" id="inquiryText">Wir interessieren uns für ${esc(p.name)}. Ist der Verein grundsätzlich gesprächsbereit?</textarea></label><label class="check-row"><input type="checkbox" id="inquiryScouting" checked> Scoutingbericht beilegen</label><button class="gold-btn wide" data-send-inquiry="${p.id}">ANFRAGE SENDEN</button></div>`,{kicker:'TRANSFER-ANFRAGE'});return;
+    }
+    openModal(`${mode==='trade'?'TAUSCH & ANGEBOT':'VERTRAGSANGEBOT'} · ${esc(p.name)}`,`<div class="contract-paper"><div class="contract-head"><span>STREET KINGS TRANSFERVERTRAG</span><b>ENTWURF</b></div><div class="contract-club"><strong>${esc(p.name)}</strong><span>${marketLabel(p.pos)} · ${p.rating} OVR · ${esc(sourceLabel)}</span><small>Marktwert: ${money(p.value||p.currentPrice||0)}</small></div><div class="contract-grid"><label class="input-label">Ablöse (€)<input class="text-input" id="offerFee" type="number" inputmode="numeric" min="0" step="5000" value="${suggested}"></label><label class="input-label">Gehalt / Woche<input class="text-input" id="offerSalary" type="number" inputmode="numeric" min="500" step="100" value="${suggestedSalary}"></label><label class="input-label">Vertragsjahre<select class="text-input" id="offerYears"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select></label><label class="input-label">Bonus bei Einsatz (€)<input class="text-input" id="offerBonus" type="number" inputmode="numeric" min="0" step="100" value="250"></label></div>${mode==='trade'?`<label class="check-row"><input type="checkbox" id="offerTrade" checked> Tauschspieler mit anbieten</label><label class="input-label">Tauschspieler<select class="text-input" id="offerTradePlayer"><option value="">Keinen Spieler anbieten</option>${ownTradeCandidates()}</select></label>`:''}<label class="input-label">Zusätzliche Vereinbarung<textarea class="text-input contract-textarea" id="offerNote" maxlength="280" placeholder="z.B. Stammplatz, Wohnungshilfe, Rückkaufklausel …"></textarea></label><div class="contract-meta"><span>📅 Antwortfenster</span><b>2–5 Tage</b></div><button class="gold-btn wide" data-send-offer="${p.id}" data-offer-mode="${mode}">VERTRAGSANGEBOT SENDEN</button><small class="contract-footnote">Die Ablöse wird erst bei Zustimmung fällig. Der andere Manager kann ablehnen oder ein Gegenangebot schicken.</small></div>`,{kicker:'VERTRAG · '+sourceLabel});
+  }
+  function sendInquiry(id){const p=findTransferTarget(id);if(!p)return;const q={id:uid('inq'),type:'inquiry',playerId:p.id,playerSnapshot:{...p},sourceTeamId:p.sourceTeamId,sourceTeamName:p.sourceTeamName||'Spielerberater',message:($('#inquiryText')?.value||'').trim()||'Ist der Verein gesprächsbereit?',status:'pending',sentAt:Date.now(),responseAt:Date.now()+6500+Math.random()*4500,dueGameDays:2,scouting:!!$('#inquiryScouting')?.checked};state.transferInquiries.unshift(q);saveState();closeModal();render();toast('Anfrage gesendet',`${p.name} · Antwort folgt im Kalender.`);}
+  function sendTransferOffer(id,mode='offer'){
+    const p=findTransferTarget(id),t=currentTeam();if(!p)return;const fee=Math.max(0,Math.round(parseNum('#offerFee',0))),salary=Math.max(0,Math.round(parseNum('#offerSalary',0))),years=clamp(Number($('#offerYears')?.value||2),1,5),bonus=Math.max(0,Math.round(parseNum('#offerBonus',0)));
+    if(!salary||!fee){toast('Angebot unvollständig','Ablöse und Gehalt eintragen.');return;}if(fee>t.budget){toast('Ablöse zu hoch','Die Ablöse überschreitet dein Budget.');return;}
+    let tradePlayerId=null,tradeValue=0;if(mode==='trade'&&p.sourceType==='club'&&$('#offerTrade')?.checked){tradePlayerId=$('#offerTradePlayer')?.value||null;const tp=t.roster.find(x=>x.id===tradePlayerId);tradeValue=tp?.value||0;}
+    const o={id:uid('off'),type:'offer',mode,playerId:p.id,playerSnapshot:{...p},sourceType:p.sourceType,sourceTeamId:p.sourceTeamId,sourceTeamName:p.sourceTeamName||'Spielerberater',fee,salary,years,bonus,note:($('#offerNote')?.value||'').trim(),tradePlayerId,tradeValue,status:'pending',sentAt:Date.now(),responseAt:Date.now()+8000+Math.random()*9000,dueGameDays:Math.floor(2+Math.random()*4),counterFee:Math.round(Math.max(p.value||p.currentPrice||50000,fee)*1.05),counterSalary:Math.round(salary*1.1),responseText:'Manager prüft das Angebot.'};
+    state.transferOffers.unshift(o);saveState();closeModal();render();toast('Angebot verschickt',`${p.name} · Antwort wird im Kalender erwartet.`);
+  }
+  function applyAcceptedTransfer(o,acceptedFee,acceptedSalary){
+    const t=currentTeam(),p=findTransferTarget(o.playerId);if(!p||t.roster.length>=12)return false;const netFee=Math.max(0,acceptedFee-Math.round((o.tradeValue||0)*0.55));if(t.budget<netFee)return false;
+    const sourceTeam=p.sourceTeamId?state.teams[p.sourceTeamId]:null;
+    if(sourceTeam){const idx=sourceTeam.roster.findIndex(x=>x.id===o.playerId);if(idx<0)return false;sourceTeam.roster.splice(idx,1);}else state.market=state.market.filter(x=>x.id!==o.playerId);
+    if(o.tradePlayerId&&sourceTeam){const ti=t.roster.findIndex(x=>x.id===o.tradePlayerId);if(ti>=5){const tp=t.roster.splice(ti,1)[0];tp.teamId=sourceTeam.id;tp.teamColor=sourceTeam.teamColor;sourceTeam.roster.push(tp);}}
+    t.budget-=netFee;t.roster.push({...p,id:uid('p'),teamId:t.id,teamColor:t.teamColor,currentPrice:undefined,listingEndsAt:undefined,salary:acceptedSalary,value:p.value||acceptedFee});return true;
+  }
+  function resolveTransferOffer(o){
+    const p=findTransferTarget(o.playerId);if(!p){o.status='rejected';o.responseText='Spieler ist nicht mehr verfügbar.';return;}
+    const ratio=o.fee/Math.max(1,p.value||o.fee),salaryRatio=o.salary/Math.max(1,p.salary||1500);let acceptance=clamp(0.25+ratio*.55+(o.years>=2?.05:0)+Math.min(.16,Math.max(0,salaryRatio-1)*.08)+(o.tradePlayerId?.10:0),.08,.92);const roll=Math.random();
+    if(roll<acceptance){if(applyAcceptedTransfer(o,o.fee,o.salary)){o.status='accepted';o.responseText='Angebot angenommen.';addNews('Transfer angenommen',`${p.name} wechselt zu ${currentTeam().name}.`,'market');}else{ o.status='countered';o.counterFee=Math.round(Math.max(o.fee+5000,(p.value||o.fee)*.98));o.counterSalary=Math.round(o.salary*1.08);o.responseText='Grundsätzliches Interesse – Budget/Deal muss angepasst werden.'; }}
+    else if(ratio<.88||roll<.76){o.status='countered';o.counterFee=Math.round(Math.max(o.fee+5000,(p.value||o.fee)*(.96+Math.random()*.12)));o.counterSalary=Math.round(o.salary*(1.05+Math.random()*.12));o.responseText='Der Manager ist gesprächsbereit und schickt ein Gegenangebot.';}
+    else{o.status='rejected';o.responseText='Der Verein lehnt das Angebot ab.';}
+    saveState();render();toast(o.status==='accepted'?'Transfer angenommen':o.status==='countered'?'Gegenangebot erhalten':'Angebot abgelehnt',p.name);
+  }
+  function acceptCounter(id){const o=state.transferOffers.find(x=>x.id===id);if(!o||o.status!=='countered')return;const t=currentTeam();if(t.budget<o.counterFee){toast('Gegenangebot zu teuer','Das Budget reicht für die neue Ablöse nicht.');return;}if(!applyAcceptedTransfer(o,o.counterFee,o.counterSalary)){toast('Transfer nicht möglich','Der Spieler ist nicht mehr verfügbar.');return;}o.fee=o.counterFee;o.salary=o.counterSalary;o.status='accepted';o.responseText='Gegenangebot angenommen.';addNews('Transfer abgeschlossen',`${o.playerSnapshot.name} kommt nach ${t.name}.`,'market');saveState();render();toast('Transfer abgeschlossen',o.playerSnapshot.name);}
+  function processTransferDesk(){
+    const now=Date.now();
+    for(const o of state.transferOffers||[])if(o.status==='pending'&&o.responseAt<=now)resolveTransferOffer(o);
+    for(const q of state.transferInquiries||[])if(q.status==='pending'&&q.responseAt<=now){const p=findTransferTarget(q.playerId);q.status='answered';q.responseText=p?(Math.random()<.68?`Der Manager bestätigt grundsätzliches Interesse. Erwartete Ablöse: ${money(Math.round((p.value||60000)*(.95+Math.random()*.18)))}.`:'Aktuell kein Interesse – später erneut anfragen.'):'Spieler nicht mehr verfügbar.';addNews('Transfer-Anfrage beantwortet',`${q.playerSnapshot?.name||'Spieler'} · ${q.responseText}`,'market');saveState();render();}
   }
 
-  function bidPlayer(id){
-    const p=state.market.find(x=>x.id===id);if(!p)return;p.bids=(p.bids||0)+1;p.marketHeat=clamp((p.marketHeat||0)+.18,0,1);const offered=Math.round(p.currentPrice*(0.96+Math.random()*.08));
-    toast('Gebot abgegeben',`${p.name}: ${money(offered)}`); setTimeout(()=>{if(Math.random()<0.58){const t=currentTeam(); if(t.roster.length<12&&t.budget>=offered){t.budget-=offered;t.roster.push({...p,id:uid('p'),teamId:t.id,teamColor:t.teamColor});state.market=state.market.filter(x=>x.id!==id);addNews('Auktion gewonnen',`${p.name} kommt nach Katzenelnbogen.`,'market');saveState();render();toast('Auktion gewonnen',p.name);}else toast('Gebot verloren','Budget oder Kaderplatz reicht nicht.');}else toast('Auktion verloren',`${p.name} ging an einen anderen Club.`);},2200);
-  }
+  function buyPlayer(id){offerModal(id,'offer');}
+  function bidPlayer(id){offerModal(id,'offer');}
+
 
   function upgradeStadium(k){
     const t=currentTeam(),lvl=t.stadium.upgrades[k]||0,cost=Math.round(9000*Math.pow(1.8,lvl));if(t.budget<cost){toast('Budget fehlt',`Benötigt ${money(cost)}.`);return;}t.budget-=cost;t.stadium.upgrades[k]=lvl+1;t.stadium.level=Math.max(t.stadium.level,lvl+2);if(k==='capacity')t.stadium.capacity+=40;if(k==='stands')t.stadium.capacity+=70;if(k==='lighting')t.stadium.capacity+=12;state.stadiumBuildKey=k;addNews('Arena verbessert',`${t.stadium.name}: ${k} auf Level ${lvl+1}.`,'stadium');saveState();render();toast('Umbau gestartet',`${k} · Level ${lvl+1}`);setTimeout(()=>{state.stadiumBuildKey='';renderPage();saveState();},1500);
@@ -1065,18 +1141,17 @@
 
   function chooseDraft(i){const t=currentTeam(),p=state._draftPlayers?.[i];if(!p)return;if(t.roster.length>=12){toast('Kader voll','Maximal 12 Spieler.');return;}t.roster.push({...p,id:uid('p'),teamId:t.id});delete state._draftPlayers;saveState();closeModal();render();toast('Talent verpflichtet',p.name);}
 
-  function exportSave(){const blob=new Blob([JSON.stringify({...state,liveMatch:null},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='street-kings-save.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);}
-  function importSave(){const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=()=>{const f=input.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);localStorage.setItem(APP_KEY,JSON.stringify(d));location.reload();}catch(e){toast('Import fehlgeschlagen','JSON ist ungültig.');}};r.readAsText(f);};input.click();}
-
-  function tickMarket(){
-    const now=Date.now();
-    state.market.forEach(p=>{
-      const trend=(Math.random()-.49)*(p.marketHeat>.5?0.018:0.011);
-      p.currentPrice=clamp(Math.round(p.currentPrice*(1+trend)),Math.round(p.value*.72),Math.round(p.value*1.22));
-      if(p.listingEndsAt<now){p.listingEndsAt=now+90000+Math.random()*150000;p.currentPrice=Math.round(p.value*(0.9+Math.random()*.15));p.bids=0;}
-    });
-    if(state.active==='market'&&!state.liveMatch)renderPage();
+  async function exportSave(){
+    const payload=JSON.stringify({...state,liveMatch:null},null,2);const file=new File([payload],'street-kings-save.json',{type:'application/json'});
+    try{if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Street Kings Manager – Spielstand',text:'Mein Street Kings Manager Spielstand'});toast('Export bereit','JSON-Datei wurde zum Speichern/Teilen geöffnet.');return;}}catch(e){if(e?.name==='AbortError')return;}
+    const url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download='street-kings-save.json';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Export erstellt','street-kings-save.json');
   }
+  function importSave(){
+    const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.style.display='none';document.body.appendChild(input);
+    input.addEventListener('change',()=>{const f=input.files?.[0];if(!f){input.remove();return;}const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(String(r.result||''));if(!d||typeof d!=='object'||!d.teams||!d.leagues)throw new Error('Kein gültiger Street-Kings-Spielstand');d.liveMatch=null;localStorage.setItem(APP_KEY,JSON.stringify(d));input.remove();toast('Import erfolgreich','Spielstand wird geladen.');setTimeout(()=>location.reload(),450);}catch(e){input.remove();toast('Import fehlgeschlagen',e.message||'JSON ist ungültig.');}};r.onerror=()=>{input.remove();toast('Import fehlgeschlagen','Datei konnte nicht gelesen werden.');};r.readAsText(f);});input.click();
+  }
+  function openNewGameModal(){openModal('NEUES SPIEL',`<div class="contract-paper reset-paper"><div class="contract-head"><span>STREET KINGS · SYSTEM</span><b>ACHTUNG</b></div><p class="modal-copy">Der aktuelle Spielstand bleibt nur erhalten, wenn du ihn vorher exportierst. Ein neues Spiel setzt Manager, Verein, Kader, Transfers, Sponsoren und Tabellen zurück.</p><div class="reset-check"><span>✓</span><b>Neuen Spielstand wirklich starten?</b></div><div class="modal-actions"><button class="ghost-btn" data-close>ABBRECHEN</button><button class="gold-btn" data-confirm-reset>NEUES SPIEL STARTEN</button></div></div>`,{kicker:'SPIELSTAND'});}
+
 
   let dragState=null;
   function bindGlobal(){
@@ -1125,7 +1200,7 @@
   }
 
   function handleClick(e){
-    const el=e.target.closest('[data-page],[data-bottom],[data-simulate],[data-close],[data-welcome],[data-player],[data-sell],[data-buy],[data-bid],[data-watch],[data-tactic],[data-marketfilter],[data-market-refresh],[data-sponsor],[data-upgrade],[data-credit],[data-export],[data-import],[data-reset],[data-draft],[data-draft-index],[data-coach],[data-firecoach],[data-settings-save],[data-select-team],[data-add-game],[data-create-friendly],[data-notify],[data-fixture],[data-rename-stadium]');
+    const el=e.target.closest('[data-page],[data-bottom],[data-simulate],[data-close],[data-save-stadium],[data-welcome],[data-player],[data-sell],[data-buy],[data-bid],[data-watch],[data-tactic],[data-marketfilter],[data-market-refresh],[data-sponsor],[data-upgrade],[data-credit],[data-export],[data-import],[data-reset],[data-confirm-reset],[data-draft],[data-draft-index],[data-coach],[data-firecoach],[data-settings-save],[data-select-team],[data-add-game],[data-create-friendly],[data-notify],[data-fixture],[data-rename-stadium],[data-offer-player],[data-inquire-player],[data-trade-player],[data-send-offer],[data-send-inquiry],[data-accept-counter]');
     if(!el)return;
     if(state.liveMatch)return; // Vorstand-Livefenster blockiert andere Navigation bis zum Schlusspfiff
     if(el.dataset.page)go(el.dataset.page);
@@ -1136,8 +1211,14 @@
     else if(el.dataset.selectTeam){const t=state.teams[el.dataset.selectTeam];if(t){state.userTeamId=t.id;state.manager=($('#welcomeManager')?.value||state.manager).trim()||'Manager';t.sponsor=t.sponsor||{...SPONSORS[0]};state.teamChosen=true;state.firstRun=false;saveState();closeModal();state.active='home';render();toast('Club gewählt',`${t.name} · ${t.city}`);}}
     else if(el.dataset.player){if(state._dragMoved){state._dragMoved=false;return;}openPlayer(el.dataset.player);}
     else if(el.dataset.sell)sellPlayer(el.dataset.sell);
-    else if(el.dataset.buy)buyPlayer(el.dataset.buy);
-    else if(el.dataset.bid)bidPlayer(el.dataset.bid);
+    else if(el.dataset.buy)offerModal(el.dataset.buy,'offer');
+    else if(el.dataset.bid)offerModal(el.dataset.bid,'offer');
+    else if(el.dataset.offerPlayer)offerModal(el.dataset.offerPlayer,'offer');
+    else if(el.dataset.inquirePlayer)offerModal(el.dataset.inquirePlayer,'inquiry');
+    else if(el.dataset.tradePlayer)offerModal(el.dataset.tradePlayer,'trade');
+    else if(el.dataset.sendOffer)sendTransferOffer(el.dataset.sendOffer,el.dataset.offerMode||'offer');
+    else if(el.dataset.sendInquiry)sendInquiry(el.dataset.sendInquiry);
+    else if(el.dataset.acceptCounter)acceptCounter(el.dataset.acceptCounter);
     else if(el.dataset.watch){const p=state.market.find(x=>x.id===el.dataset.watch);if(p){p.watch=!p.watch;render();}}
     else if(el.dataset.tactic){state.tactic=el.dataset.tactic;const t=currentTeam();state.lineupPositions[t.id]={};saveState();renderPage();}
     else if(el.dataset.marketfilter){state.marketFilter=el.dataset.marketfilter;renderPage();}
@@ -1147,7 +1228,8 @@
     else if(el.dataset.credit){const t=currentTeam();t.budget+=50000;saveState();render();toast('Kredit aufgenommen','+50.000 € Vereinsbudget.');}
     else if(el.dataset.export)exportSave();
     else if(el.dataset.import)importSave();
-    else if(el.dataset.reset&&confirm('Neuen Spielstand starten?'))resetState();
+    else if(el.dataset.reset)openNewGameModal();
+    else if(el.dataset.confirmReset){closeModal();resetState();}
     else if(el.dataset.draft)draft(el.dataset.draft);
     else if(el.dataset.draftIndex)chooseDraft(Number(el.dataset.draftIndex));
     else if(el.dataset.coach)hireCoach(el.dataset.coach);
